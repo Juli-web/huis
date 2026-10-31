@@ -11,3 +11,4 @@ Persoonlijke tool voor inventaris en winkellinks. Draait op Cloudflare Pages, ge
 3. Cloudflare › Storage & Databases › KV › Create namespace (bijvoorbeeld `huislinks`).
 4. In het Pages-project: Settings › Bindings › Add › KV namespace. Variable name `STORE`, kies de namespace. Zet dit voor Production en Preview. Deploy daarna opnieuw.
 5. In het Pages-project: Settings › General › Access policy › Enable. Laat alleen je eigen e-mailadres toe.
+
