@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F3ECE3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Huislinks">
+<title>Huislinks</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#7E4045}a:hover{color:#5E2E33}
+a.btn,a.btn:hover{color:#FFFFFF}
+button,input,textarea{font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,.pick:focus-within{outline:3px solid #B0575F;outline-offset:2px}
+.row:hover{background:#F5EBE4}
+::placeholder{color:#7D6663;opacity:1}
+.zone:focus{outline:none;box-shadow:0 0 0 3px #E3C8BE}
+.ph:focus{outline:none;border-color:#B0575F;box-shadow:0 0 0 3px #E3C8BE}
+.sr{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<script src="/vue.global.prod.js"></script>
+<script>
+(function () {
+  var TEMPLATE = "\n\n<div style=\"min-height: 1000px; background: #F3ECE3; color: #3A2426; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; padding: 48px 16px 96px; box-sizing: border-box\">\n<div style=\"max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px\">\n\n<template v-if=\"warnStorage\">\n<div style=\"background: #FBEAE6; border: 1px solid #E3B3A9; border-radius: 8px; padding: 12px 16px; font-size: 14px; color: #6E1F14\">Opslaan online lukt nu niet. Wat je invoert staat alleen op dit apparaat en we proberen het opnieuw.<\/div>\n<\/template>\n\n<!-- ============ MINI-MENU (status, meubel, link) ============ -->\n<template v-if=\"popOpen\">\n<button type=\"button\" aria-label=\"Sluit menu\" @click=\"closePop\" style=\"position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; background: transparent; border: 0; cursor: default\"><\/button>\n<div role=\"menu\" :style=\"`position: fixed; top: ${popTop}; left: ${popLeft}; z-index: 21; width: 164px; box-sizing: border-box; padding: 4px; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; box-shadow: 0 6px 18px rgba(58, 36, 38, 0.18)`\">\n<template v-for=\"(p, __i0) in popItems\" :key=\"__i0\">\n<button type=\"button\" role=\"menuitem\" @click=\"p.go\" :style=\"`display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; box-sizing: border-box; padding: 0 10px; font-size: 14px; font-weight: 600; text-align: left; color: ${p.fg}; background: ${p.bg}; border: 0; border-radius: 6px; cursor: pointer`\">\n<span :style=\"`display: ${p.dotDisplay}; flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${p.dot}; border: 1px solid #A98F88`\"><\/span>\n{{p.label}}\n<\/button>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- ============ STARTPAGINA ============ -->\n<template v-if=\"showStart\">\n<div style=\"display: flex; flex-direction: column; gap: 28px\">\n\n<div style=\"display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 16px; text-align: center\">\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 48px); line-height: 1.05; letter-spacing: -0.02em\">Huislinks<\/h1>\n<\/div>\n\n<div style=\"display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 16px 24px; text-align: center; background: #EBD7CF; border-radius: 16px\">\n<div style=\"font-size: 24px; font-weight: 700; color: #3A2426\">Link bewaren<\/div>\n<div style=\"font-size: 15px; color: #5C3B3C; text-wrap: pretty\">Plak een link nu, verdeel hem later onder een meubel.<\/div>\n<div style=\"display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 560px\">\n<input id=\"cap-in\" type=\"text\" aria-label=\"Plak een link\" placeholder=\"Plak een link\" :value=\"capDraft\" @input=\"onCapDraft\" @keydown=\"onCapKey\" style=\"flex: 1 1 260px; min-height: 56px; box-sizing: border-box; padding: 0 18px; font-size: 17px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 12px\">\n<button type=\"button\" @click=\"capSave\" :style=\"`flex: 1 1 150px; min-height: 56px; padding: 0 22px; font-size: 17px; font-weight: 700; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 12px; cursor: pointer`\">Bewaar link<\/button>\n<\/div>\n<template v-if=\"capError\">\n<span style=\"font-size: 14px; font-weight: 700; color: #8C1D2B\">Dit lijkt geen geldige link.<\/span>\n<\/template>\n<template v-if=\"capDone\">\n<span style=\"font-size: 14px; font-weight: 700; color: #3A2426\">Bewaard bij “Nog te sorteren”.<\/span>\n<\/template>\n<button type=\"button\" @click=\"goInbox\" style=\"min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Nog te sorteren ({{inboxCount}})<\/button>\n<\/div>\n\n<div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px\">\n<button type=\"button\" @click=\"goHome\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 96px; box-sizing: border-box; padding: 16px 20px; text-align: left; color: #3A2426; background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 14px; cursor: pointer\">\n<span style=\"display: flex; flex-direction: column; gap: 4px\">\n<span style=\"font-size: 22px; font-weight: 700\">Inventarislijst<\/span>\n<span style=\"font-size: 14px; color: #6F5654\">{{meubelCount}} in totaal<\/span>\n<\/span>\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#6F5654\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<button type=\"button\" @click=\"goBuy\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 96px; box-sizing: border-box; padding: 16px 20px; text-align: left; color: #3A2426; background: #F3E1DA; border: 1px solid #E3C8BE; border-radius: 14px; cursor: pointer\">\n<span style=\"display: flex; flex-direction: column; gap: 4px\">\n<span style=\"font-size: 22px; font-weight: 700\">Nog kopen<\/span>\n<span style=\"font-size: 14px; color: #5C3B3C\">{{buyCount}} om te kopen<\/span>\n<\/span>\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#5C3B3C\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<\/div>\n\n<\/div>\n<\/template>\n\n<!-- ============ INVENTARISLIJST ============ -->\n<template v-if=\"showHome\">\n<div style=\"display: flex; flex-direction: column; gap: 24px\">\n\n<div style=\"display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px\">\n<div style=\"display: flex; flex-direction: column; gap: 8px\">\n<button type=\"button\" @click=\"goStart\" style=\"align-self: flex-start; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px; font-size: 15px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\" /><\/svg>\nStart\n<\/button>\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 44px); line-height: 1.05; letter-spacing: -0.02em\">Inventarislijst<\/h1>\n<p style=\"margin: 0; font-size: 17px; color: #6F5654; text-wrap: pretty\">Zet je meubels onder een kamer en deel, en kies wat je ermee doet.<\/p>\n<\/div>\n<button type=\"button\" @click=\"goBuy\" style=\"display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px 0 20px; font-size: 16px; font-weight: 600; color: #5C2E33; background: #EBD7CF; border: 1px solid #D9B8AE; border-radius: 999px; cursor: pointer\">\nNog kopen\n<span style=\"display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; box-sizing: border-box; padding: 0 8px; font-size: 14px; font-weight: 700; color: #FFFFFF; background: #7E4045; border-radius: 14px\">{{buyCount}}<\/span>\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<\/div>\n\n<template v-if=\"hasRooms\">\n<div style=\"background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 12px; overflow: hidden\">\n\n<template v-for=\"(r, __i1) in rows\" :key=\"__i1\">\n\n<!-- Kamer: een omhulsel, klein en rustig -->\n<template v-if=\"r.isKamer\">\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 2px 8px 2px 16px; background: #EBD7CF; border-top: 1px solid #E3D6CA; min-height: 48px; box-sizing: border-box\">\n<div style=\"flex: 1 1 160px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C3B3C\">{{r.name}}<\/div>\n<template v-if=\"r.notConfirming\">\n<div style=\"display: flex; align-items: center\">\n<button type=\"button\" @click=\"r.toggleAdd\" style=\"display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 10px; font-size: 13px; font-weight: 600; color: #5C3B3C; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\nDeel\n<\/button>\n<button type=\"button\" @click=\"r.askDel\" :aria-label=\"`Verwijder ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/div>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder alles<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Deel: ook een omhulsel, iets lichter -->\n<template v-if=\"r.isDeel\">\n<div @dragover=\"r.dragOver\" @drop=\"r.drop\" :style=\"`display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 8px 0 ${r.pad}; min-height: 40px; border-top: 1px solid #ECE1D6; box-sizing: border-box; background: ${r.dropBg}`\">\n<div style=\"flex: 1 1 160px; font-size: 15px; font-weight: 600; color: #5C3B3C\">{{r.name}}<\/div>\n<template v-if=\"r.notConfirming\">\n<button type=\"button\" @click=\"r.askDel\" :aria-label=\"`Verwijder ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Meubel: de hoofdzaak -->\n<template v-if=\"r.isMeubel\">\n<div class=\"row\" draggable=\"true\" @dragstart=\"r.dragStart\" @dragend=\"r.dragEnd\" @dragover=\"r.dragOver\" @drop=\"r.drop\" :style=\"`display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; padding: 0 8px 0 ${r.pad}; border-top: 1px solid #F0E7DD; min-height: 48px; box-sizing: border-box; background: ${r.dropBg}`\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"18\" viewBox=\"0 0 12 18\" fill=\"#A98F88\" style=\"flex: none; margin-right: -8px; cursor: grab\"><circle cx=\"3\" cy=\"4\" r=\"1.4\" /><circle cx=\"9\" cy=\"4\" r=\"1.4\" /><circle cx=\"3\" cy=\"9\" r=\"1.4\" /><circle cx=\"9\" cy=\"9\" r=\"1.4\" /><circle cx=\"3\" cy=\"14\" r=\"1.4\" /><circle cx=\"9\" cy=\"14\" r=\"1.4\" /><\/svg>\n<button type=\"button\" @click=\"r.open\" :aria-label=\"`Open links voor ${r.name}`\" style=\"flex: 1 1 180px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; text-align: left; font-size: 18px; font-weight: 600; color: #3A2426; background: transparent; border: 0; cursor: pointer\">\n<span>{{r.name}}<\/span>\n<\/button>\n<button type=\"button\" @click=\"r.openStatus\" aria-haspopup=\"menu\" :aria-label=\"`Status van ${r.name}: ${r.statusLabel}. Klik om te wijzigen`\" style=\"min-height: 40px; padding: 0 1px; background: transparent; border: 0; cursor: pointer\">\n<span :style=\"`display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 10px; font-size: 12px; font-weight: 700; color: ${r.stFg}; background: ${r.stBg}; border: 1px solid ${r.stBd}; border-radius: 999px`\">{{r.statusLabel}}\n<svg aria-hidden=\"true\" width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 9l6 6 6-6\" /><\/svg><\/span>\n<\/button>\n<template v-if=\"r.notConfirming\">\n<button type=\"button\" @click=\"r.openMenu\" aria-haspopup=\"menu\" :aria-label=\"`Meer opties voor ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"5\" cy=\"12\" r=\"1.8\" /><circle cx=\"12\" cy=\"12\" r=\"1.8\" /><circle cx=\"19\" cy=\"12\" r=\"1.8\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Meubel verplaatsen naar een categorie -->\n<template v-if=\"r.isMove\">\n<div :style=\"`display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 12px ${r.pad}; background: #F8F0EA; border-top: 1px solid #F0E7DD`\">\n<span style=\"font-size: 13px; font-weight: 700; color: #5C3B3C\">Verplaats naar<\/span>\n<template v-if=\"r.noTargets\">\n<span style=\"font-size: 14px; color: #6F5654\">Maak eerst een kamer en een deel aan.<\/span>\n<\/template>\n<div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n<template v-for=\"(t, __i2) in r.targets\" :key=\"__i2\">\n<button type=\"button\" @click=\"t.go\" style=\"min-height: 40px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px; cursor: pointer\">{{t.label}}<\/button>\n<\/template>\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 40px; padding: 0 10px; font-size: 14px; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/div>\n<\/template>\n\n<!-- Meubel aanpassen -->\n<template v-if=\"r.isEdit\">\n<div :style=\"`display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 16px 6px ${r.pad}; background: #F8F0EA; border-top: 1px solid #F0E7DD; min-height: 56px; box-sizing: border-box`\">\n<input :id=\"`ed-${r.eid}`\" type=\"text\" aria-label=\"Naam van het meubel\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" :style=\"`flex: 1 1 220px; max-width: 420px; min-height: 44px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 2px solid ${accent}; border-radius: 8px`\">\n<button type=\"button\" @click=\"r.save\" :style=\"`min-height: 44px; padding: 0 16px; font-size: 15px; font-weight: 600; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 8px; cursor: pointer`\">Opslaan<\/button>\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 44px; padding: 0 12px; font-size: 15px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n\n<!-- Meubel toevoegen: altijd zichtbaar onder elk deel -->\n<template v-if=\"r.isQuick\">\n<div @dragover=\"r.dragOver\" @drop=\"r.drop\" :style=\"`padding: 0 16px 8px ${r.pad}; background: ${r.dropBg}`\">\n<input :id=\"`in-${r.pid}`\" type=\"text\" :aria-label=\"`Meubel toevoegen aan ${r.parentName}, bevestig met Enter`\" :placeholder=\"r.qPlaceholder\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" style=\"width: 100%; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 4px; font-size: 15px; color: #3A2426; background: transparent; border: 0; border-bottom: 1px dashed #A38A83; border-radius: 0\">\n<\/div>\n<\/template>\n\n<!-- Deel toevoegen (onder een kamer) -->\n<template v-if=\"r.isForm\">\n<div :style=\"`display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px 12px ${r.pad}; background: #F8F0EA; border-top: 1px solid #ECE1D6`\">\n<input :id=\"`in-${r.pid}`\" type=\"text\" :aria-label=\"r.placeholder\" :placeholder=\"r.placeholder\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" :autofocus=\"true\" style=\"flex: 1 1 220px; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 14px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 44px; padding: 0 12px; font-size: 15px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n\n<\/template>\n<\/div>\n<\/template>\n\n<template v-if=\"noRooms\">\n<p style=\"margin: 0; font-size: 16px; color: #6F5654; font-style: italic\">Nog niets. Begin met een kamer, bijvoorbeeld de woonkamer.<\/p>\n<\/template>\n\n<div style=\"display: flex; flex-wrap: wrap; gap: 8px\">\n<input id=\"room-in\" type=\"text\" aria-label=\"Nieuwe kamer, bevestig met Enter\" placeholder=\"Nieuwe kamer\" :value=\"roomDraft\" @input=\"onRoomDraft\" @keydown=\"onRoomKey\" style=\"flex: 1 1 200px; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<\/div>\n\n<\/div>\n<\/template>\n\n<!-- ============ NOG KOPEN ============ -->\n<template v-if=\"showBuy\">\n<div style=\"display: flex; flex-direction: column; gap: 24px\">\n\n<div style=\"display: flex; flex-direction: column; gap: 12px; align-items: flex-start\">\n<button type=\"button\" @click=\"goBack\" style=\"display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px; font-size: 15px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\" /><\/svg>\n{{backLabel}}\n<\/button>\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 44px); line-height: 1.05; letter-spacing: -0.02em\">{{pageTitle}}<\/h1>\n<template v-if=\"focusMode\">\n<button type=\"button\" @click=\"goBuy\" style=\"min-height: 44px; padding: 0; font-size: 15px; font-weight: 600; color: #9A4440; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Alles wat nog gekocht moet worden<\/button>\n<\/template>\n<\/div>\n\n<template v-if=\"noBuy\">\n<p style=\"margin: 0; max-width: 560px; font-size: 16px; color: #6F5654; text-wrap: pretty\">Nog geen meubels om te kopen. Kies in de inventarislijst bij een meubel “Nog kopen”, dan verschijnt het hier.<\/p>\n<\/template>\n\n<template v-for=\"(s, __i3) in sections\" :key=\"__i3\">\n<div class=\"zone\" tabindex=\"0\" role=\"group\" :aria-label=\"`Links voor ${s.name}`\" @paste=\"s.onPasteArea\" style=\"display: flex; flex-direction: column; gap: 14px; background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 12px; padding: 16px 20px 20px\">\n\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px\">\n<div style=\"display: flex; flex-direction: column; gap: 2px\">\n<span style=\"font-size: 13px; color: #6F5654\">{{s.crumb}}<\/span>\n<h2 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: 24px; line-height: 1.15\">{{s.name}}<\/h2>\n<\/div>\n<div style=\"display: flex; align-items: center\">\n<button type=\"button\" @click=\"s.addNote\" style=\"min-height: 44px; padding: 0 2px; background: transparent; border: 0; cursor: pointer\">\n<span style=\"display: flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 13px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\nComment\n<\/span>\n<\/button>\n<button type=\"button\" @click=\"s.toggle\" :aria-expanded=\"s.formOpen\" style=\"min-height: 44px; padding: 0 2px; background: transparent; border: 0; cursor: pointer\">\n<span style=\"display: flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 13px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\n{{s.toggleLabel}}\n<\/span>\n<\/button>\n<\/div>\n<\/div>\n\n<template v-if=\"s.formOpen\">\n<div @paste=\"onPaste\" style=\"display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #F8F0EA; border: 1px solid #ECE1D6; border-radius: 10px\">\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 8px\">\n<input id=\"lk-url\" type=\"text\" aria-label=\"Link naar de winkel\" placeholder=\"Plak de link\" :value=\"ld.url\" @input=\"onUrl\" @keydown=\"onLinkKey\" :autofocus=\"true\" style=\"flex: 2 1 220px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<input id=\"lk-comment\" type=\"text\" aria-label=\"Comment\" placeholder=\"Comment\" :value=\"ld.comment\" @input=\"onComment\" @keydown=\"onLinkKey\" style=\"flex: 2 1 180px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<label class=\"pick\" style=\"position: relative; display: flex; align-items: center; gap: 6px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 14px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\" /><circle cx=\"9\" cy=\"10\" r=\"1.6\" /><path d=\"M21 16l-5-5-8 9\" /><\/svg>\nFoto\n<input class=\"sr\" type=\"file\" accept=\"image/*\" @input=\"onFile\">\n<\/label>\n<template v-if=\"hasPreview\">\n<div style=\"display: flex; align-items: center; gap: 4px\">\n<img :src=\"preview\" alt=\"Gekozen foto\" style=\"width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #E3D6CA\">\n<button type=\"button\" @click=\"clearImg\" aria-label=\"Foto weghalen\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/div>\n<\/template>\n<button type=\"button\" @click=\"addLink\" :style=\"`min-height: 44px; padding: 0 18px; font-size: 15px; font-weight: 600; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 8px; cursor: pointer`\">Opslaan<\/button>\n<button type=\"button\" @click=\"s.toggle\" aria-label=\"Link toevoegen sluiten\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/div>\n<template v-if=\"urlError\">\n<span style=\"font-size: 14px; color: #8C1D2B\">Dit lijkt geen geldige link.<\/span>\n<\/template>\n<span style=\"font-size: 13px; color: #6F5654\">Een foto kun je kiezen of plakken met Ctrl+V.<\/span>\n<\/div>\n<\/template>\n\n<template v-if=\"s.noLinks\">\n<p style=\"margin: 0; font-size: 15px; color: #6F5654\">Nog geen links of comments.<\/p>\n<\/template>\n\n<div style=\"display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 12px\">\n<template v-for=\"(l, __i4) in s.items\" :key=\"__i4\">\n<div :style=\"`display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding: ${l.wrapPad}; background: ${l.wrapBg}; border: ${l.wrapBorder}; border-radius: 10px`\">\n<template v-if=\"l.isLink\">\n\n<template v-if=\"l.hasImg\">\n<a :href=\"l.url\" target=\"_blank\" rel=\"noopener noreferrer\" :aria-label=\"`Open ${l.shop} in een nieuw tabblad`\" style=\"display: block; aspect-ratio: 16 / 10; overflow: hidden; background: #EBD9D0; border-radius: 6px\">\n<img :src=\"l.img\" alt=\"\" @error=\"l.onImgError\" style=\"display: block; width: 100%; height: 100%; object-fit: cover\">\n<\/a>\n<div style=\"display: flex; align-items: center; justify-content: space-between; gap: 8px\">\n<span style=\"font-size: 12px; color: #6F5654\">{{l.photoLabel}}<\/span>\n<button type=\"button\" @click=\"l.clearPhoto\" style=\"min-height: 32px; padding: 0 4px; font-size: 12px; font-weight: 700; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Andere foto<\/button>\n<\/div>\n<\/template>\n<template v-if=\"l.noImg\">\n<div class=\"ph\" :id=\"`ph-${l.id}`\" tabindex=\"0\" role=\"group\" aria-label=\"Foto toevoegen: klik en plak een afbeelding met Ctrl+V\" @paste=\"l.onPhPaste\" style=\"display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 16 / 10; box-sizing: border-box; padding: 8px; text-align: center; font-size: 13px; color: #6F5654; background: #EBD9D0; border: 1px dashed #A38A83; border-radius: 6px\">\n<svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\" /><circle cx=\"9\" cy=\"10\" r=\"1.6\" /><path d=\"M21 16l-5-5-8 9\" /><\/svg>\n<span>Klik en plak een foto (Ctrl+V)<\/span>\n<label class=\"pick\" style=\"position: relative; display: flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 700; color: #3A2426; text-decoration: underline; cursor: pointer\">\nof kies een bestand\n<input class=\"sr\" type=\"file\" accept=\"image/*\" @input=\"l.onPhFile\">\n<\/label>\n<\/div>\n<\/template>\n\n<div style=\"display: flex; flex-direction: column; gap: 6px; padding: 0 4px\">\n<div style=\"display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 8px\">\n<span style=\"font-weight: 700; font-size: 16px\">{{l.shop}}<\/span>\n<span style=\"font-size: 12px; color: #6F5654\">{{l.host}}<\/span>\n<\/div>\n<\/div>\n\n<\/template>\n\n<template v-if=\"l.editing\">\n<textarea :id=\"`nt-${l.id}`\" aria-label=\"Comment\" rows=\"3\" placeholder=\"Typ een comment\" :value=\"l.noteDraft\" @input=\"l.onNoteDraft\" @blur=\"l.saveNote\" @keydown=\"l.onNoteKey\" :style=\"`box-sizing: border-box; width: 100%; padding: 8px 10px; font-size: 14px; line-height: 1.4; color: #3A2426; background: #FBF7F2; border: 2px solid ${accent}; border-radius: 8px; resize: vertical`\"><\/textarea>\n<\/template>\n<template v-if=\"l.notEditing\">\n<div style=\"display: flex; align-items: flex-start; gap: 2px\">\n<button type=\"button\" @click=\"l.startNote\" aria-label=\"Comment bewerken\" :style=\"`flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 8px 10px; text-align: left; font-size: 14px; line-height: 1.4; color: ${l.noteColor}; background: #F3E1DA; border: 1px solid #E3C8BE; border-radius: 8px; cursor: text; white-space: pre-wrap; overflow-wrap: anywhere`\">{{l.noteText}}<\/button>\n<template v-if=\"l.isNote\">\n<button type=\"button\" @click=\"l.doDel\" aria-label=\"Verwijder comment\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 44px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/template>\n<\/div>\n<\/template>\n\n<template v-if=\"l.isLink\">\n<div style=\"display: flex; align-items: center; gap: 6px\">\n<a class=\"btn\" :href=\"l.url\" target=\"_blank\" rel=\"noopener noreferrer\" :style=\"`flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; font-weight: 600; text-decoration: none; background: ${accent}; border-radius: 8px`\">\nOpen winkel\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\" /><\/svg>\n<\/a>\n<template v-if=\"l.notConfirming\">\n<button type=\"button\" @click=\"l.openMenu\" aria-haspopup=\"menu\" :aria-label=\"`Meer opties voor link naar ${l.shop}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"5\" cy=\"12\" r=\"1.8\" /><circle cx=\"12\" cy=\"12\" r=\"1.8\" /><circle cx=\"19\" cy=\"12\" r=\"1.8\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"l.confirming\">\n<button type=\"button\" @click=\"l.doDel\" style=\"min-height: 44px; padding: 0 10px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Verwijder<\/button>\n<button type=\"button\" @click=\"l.cancelDel\" aria-label=\"Annuleer verwijderen\" style=\"display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/template>\n<\/div>\n\n<template v-if=\"l.moveOpen\">\n<div style=\"display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #F8F0EA; border-radius: 8px\">\n<span style=\"font-size: 13px; font-weight: 700; color: #5C3B3C\">Verplaats naar<\/span>\n<template v-if=\"l.noMoveTargets\">\n<span style=\"font-size: 13px; color: #6F5654\">Maak eerst een meubel aan in de inventarislijst.<\/span>\n<\/template>\n<div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n<template v-for=\"(t, __i5) in l.moveTargets\" :key=\"__i5\">\n<button type=\"button\" @click=\"t.go\" style=\"min-height: 40px; padding: 0 12px; font-size: 13px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px; cursor: pointer\">{{t.label}}<\/button>\n<\/template>\n<button type=\"button\" @click=\"l.cancelMove\" style=\"min-height: 40px; padding: 0 8px; font-size: 13px; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/div>\n<\/template>\n<\/template>\n\n<\/div>\n<\/template>\n<\/div>\n\n<p style=\"margin: 0; font-size: 13px; color: #6F5654\">Klik ergens in dit vlak en plak een link met Ctrl+V.<\/p>\n\n<\/div>\n<\/template>\n\n<\/div>\n<\/template>\n\n<\/div>\n<\/div>\n";
+
+  var pending = false;
+  var shared = null;
+  var comp = null;
+
+  class DCLogic {
+    constructor(props) { this.props = props || {}; this.state = {}; }
+    setState(patch) {
+      Object.assign(this.state, typeof patch === 'function' ? patch(this.state) : patch);
+      if (pending || !shared) return;
+      pending = true;
+      Promise.resolve().then(function () { pending = false; Object.assign(shared, comp.renderVals()); });
+    }
+  }
+
+
+const KEY = 'huislinks-v1';
+const BLANK_LD = { url: '', img: '', comment: '' };
+const STATUS = [
+  { key: 'overnemen', label: 'Overnemen', color: '#6B5350' },
+  { key: 'bezit', label: 'Al in bezit', color: '#5F6040' },
+  { key: 'kopen', label: 'Nog kopen', color: '#9A4440' }
+];
+// Niveaus: room = kamer, item = deel, sub = meubel
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      data: { nodes: [], links: [] },
+      view: 'start',
+      prev: 'start',
+      addFor: null,
+      focusId: null,
+      editing: null,
+      editName: '',
+      noteEdit: null,
+      noteDraft: '',
+      moving: null,
+      movingLink: null,
+      capDraft: '',
+      capError: false,
+      capDone: false,
+      adding: null,
+      drafts: {},
+      roomDraft: '',
+      confirmDel: null,
+      confirmLink: null,
+      ld: BLANK_LD,
+      urlError: false,
+      persistOk: true
+    };
+  }
+
+  componentDidMount() {
+    let local = null;
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) local = JSON.parse(raw);
+    } catch (e) {}
+    const ok = (d) => d && Array.isArray(d.nodes) && Array.isArray(d.links);
+    if (ok(local)) this.setState({ data: local });
+    this._local = ok(local) ? local : null;
+    this.loadRemote(true);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (this._dirty) { clearTimeout(this._t); this.saveRemote(); } }
+      else this.loadRemote(false);
+    });
+  }
+
+  loadRemote(first) {
+    if (this._saving || this._dirty) return;
+    fetch('/api/data', { cache: 'no-store' })
+      .then((r) => { if (!r.ok) throw new Error('load'); return r.json(); })
+      .then((d) => {
+        if (this._saving || this._dirty) return;
+        const ok = d && Array.isArray(d.nodes) && Array.isArray(d.links);
+        if (ok && (d.nodes.length || d.links.length)) {
+          this.setState({ data: d, persistOk: true });
+          try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+        } else if (first && this._local && (this._local.nodes.length || this._local.links.length)) {
+          this.saveRemote();
+        } else {
+          this.setState({ persistOk: true });
+        }
+      })
+      .catch(() => this.setState({ persistOk: false }));
+  }
+
+  queueSave() {
+    this._dirty = true;
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.saveRemote(), 500);
+  }
+
+  saveRemote() {
+    this._dirty = false;
+    this._saving = true;
+    fetch('/api/data', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(this.state.data) })
+      .then((r) => { if (!r.ok) throw new Error('save'); this.setState({ persistOk: true }); })
+      .catch(() => {
+        this.setState({ persistOk: false });
+        this._dirty = true;
+        clearTimeout(this._t);
+        this._t = setTimeout(() => this.saveRemote(), 8000);
+      })
+      .then(() => { this._saving = false; });
+  }
+
+  commit(data, extra) {
+    this.setState(Object.assign({ data: data }, extra || {}));
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    this.queueSave();
+  }
+
+  uid() {
+    return Math.random().toString(36).slice(2, 9);
+  }
+
+  val(id, fallback) {
+    const el = document.getElementById(id);
+    return ((fallback || '') || (el ? el.value : '') || '').trim();
+  }
+
+  clearEl(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  }
+
+  focusEl(id) {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.focus();
+        if (el.select) el.select();
+      }
+    }, 60);
+  }
+
+  fixUrl(u) {
+    u = (u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    try {
+      const p = new URL(u);
+      if (!p.hostname || p.hostname.indexOf('.') === -1) return '';
+      return p.href;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  hostOf(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; }
+  }
+
+  shopOf(u) {
+    const parts = this.hostOf(u).split('.');
+    let name = parts[0];
+    if (parts.length >= 2) {
+      name = parts[parts.length - 2];
+      if (['co', 'com', 'org', 'net'].indexOf(name) !== -1 && parts.length >= 3) name = parts[parts.length - 3];
+    }
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  readImage(file, cb) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 480;
+        const s = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s));
+        c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  capSaveNow() {
+    const url = this.fixUrl(this.val('cap-in', this.state.capDraft));
+    if (!url) { this.setState({ capError: true, capDone: false }); return; }
+    this.clearEl('cap-in');
+    this.addLinkQuick('inbox', url, { capDraft: '', capError: false, capDone: true });
+  }
+
+  moveLink(id, target) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === target && !n.status ? Object.assign({}, n, { status: 'kopen' }) : n)),
+      links: d.links.map((l) => (l.id === id ? Object.assign({}, l, { nodeId: target }) : l))
+    }, { movingLink: null });
+  }
+
+  moveNode(id, target) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { parent: target }) : n)),
+      links: d.links
+    }, { moving: null });
+  }
+
+  renameNode(id) {
+    const el = document.getElementById('ed-' + id);
+    const name = (el ? el.value : (this.state.editName || '')).trim();
+    if (!name) return;
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { name: name }) : n)),
+      links: d.links
+    }, { editing: null });
+  }
+
+  openPop(kind, id, e) {
+    const el = e && (e.currentTarget || (e.target && e.target.closest && e.target.closest('button')));
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : { top: 80, bottom: 120, right: 300 };
+    const count = kind === 'status' ? 4 : (kind === 'meubel' ? 3 : 2);
+    const h = count * 40 + 10;
+    const w = window.innerWidth || 400;
+    const vh = window.innerHeight || 700;
+    const left = Math.max(8, Math.min(r.right - 164, w - 172));
+    const top = r.bottom + 4 + h > vh ? Math.max(8, r.top - h - 4) : r.bottom + 4;
+    this.setState({ pop: { kind: kind, id: id, top: top, left: left } });
+  }
+
+  setStatus(id, status) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { status: status }) : n)),
+      links: d.links
+    });
+  }
+
+  addRoomNow() {
+    const name = this.val('room-in', this.state.roomDraft);
+    if (!name) return;
+    this.clearEl('room-in');
+    const id = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes.concat([{ id: id, kind: 'room', parent: null, name: name }]),
+      links: this.state.data.links
+    }, { roomDraft: '', adding: { parent: id } });
+    this.focusEl('in-' + id);
+  }
+
+  addLinkNow() {
+    const ld = this.state.ld;
+    const nodeId = this.state.addFor;
+    if (!nodeId) return;
+    const url = this.fixUrl(this.val('lk-url', ld.url));
+    if (!url) { this.setState({ urlError: true }); return; }
+    const comment = this.val('lk-comment', ld.comment);
+    ['lk-url', 'lk-comment'].forEach((id) => this.clearEl(id));
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([{
+        id: this.uid(), nodeId: nodeId, url: url,
+        shop: this.shopOf(url), img: ld.img || this.shotUrl(url), shot: !ld.img, comment: comment, t: Date.now()
+      }])
+    }, { ld: BLANK_LD, urlError: false });
+  }
+
+  shotUrl(url) {
+    return 'https://s0.wp.com/mshots/v1/' + encodeURIComponent(url) + '?w=640&h=400';
+  }
+
+  addLinkQuick(nodeId, url, extra) {
+    const id = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([{ id: id, nodeId: nodeId, url: url, shop: this.shopOf(url), img: this.shotUrl(url), shot: true, comment: '', t: Date.now() }])
+    }, extra);
+    this.focusEl('ph-' + id);
+  }
+
+  addNote(nodeId) {
+    const id = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([{ id: id, nodeId: nodeId, url: '', note: true, shop: '', img: '', comment: '', t: Date.now() }])
+    }, { noteEdit: id, noteDraft: '' });
+    this.focusEl('nt-' + id);
+  }
+
+  startNote(id) {
+    const l = this.state.data.links.find((x) => x.id === id);
+    this.setState({ noteEdit: id, noteDraft: l ? (l.comment || '') : '' });
+    this.focusEl('nt-' + id);
+  }
+
+  saveNote(id) {
+    if (this.state.noteEdit !== id) return;
+    const el = document.getElementById('nt-' + id);
+    const text = (el ? el.value : (this.state.noteDraft || '')).trim();
+    const d = this.state.data;
+    const l = d.links.find((x) => x.id === id);
+    if (!l) { this.setState({ noteEdit: null }); return; }
+    if (l.note && !text) {
+      this.commit({ nodes: d.nodes, links: d.links.filter((x) => x.id !== id) }, { noteEdit: null });
+    } else {
+      this.commit({ nodes: d.nodes, links: d.links.map((x) => (x.id === id ? Object.assign({}, x, { comment: text }) : x)) }, { noteEdit: null });
+    }
+  }
+
+  cancelNote(id) {
+    const d = this.state.data;
+    const l = d.links.find((x) => x.id === id);
+    if (l && l.note && !l.comment) this.commit({ nodes: d.nodes, links: d.links.filter((x) => x.id !== id) }, { noteEdit: null });
+    else this.setState({ noteEdit: null });
+  }
+
+  removeNode(id) {
+    const nodes = this.state.data.nodes;
+    const gone = {};
+    gone[id] = true;
+    let grew = true;
+    while (grew) {
+      grew = false;
+      nodes.forEach((n) => {
+        if (n.parent && gone[n.parent] && !gone[n.id]) { gone[n.id] = true; grew = true; }
+      });
+    }
+    this.commit({
+      nodes: nodes.filter((n) => !gone[n.id]),
+      links: this.state.data.links.filter((l) => !gone[l.nodeId])
+    }, { confirmDel: null, adding: null, addFor: gone[this.state.addFor] ? null : this.state.addFor });
+  }
+
+  addChild(parentId) {
+    const inputId = 'in-' + parentId;
+    const name = this.val(inputId, this.state.drafts[parentId]);
+    if (!name) return;
+    const d = this.state.data;
+    const parent = parentId === 'overig' ? { kind: 'item' } : d.nodes.find((n) => n.id === parentId);
+    if (!parent) return;
+    this.clearEl(inputId);
+    const kind = parent.kind === 'room' ? 'item' : 'sub';
+    const id = this.uid();
+    const drafts = Object.assign({}, this.state.drafts);
+    drafts[parentId] = '';
+    this.commit({
+      nodes: d.nodes.concat([{ id: id, kind: kind, parent: parentId, name: name }]),
+      links: d.links
+    }, kind === 'item' ? { drafts: drafts, adding: null } : { drafts: drafts });
+    // nieuw deel: meteen klaar om het eerste meubel te typen; nieuw meubel: invoerveld blijft actief
+    this.focusEl(kind === 'item' ? 'in-' + id : inputId);
+  }
+
+  updateLink(id, patch) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes,
+      links: d.links.map((l) => (l.id === id ? Object.assign({}, l, patch) : l))
+    });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const d = st.data;
+    const nodes = d.nodes;
+    const links = d.links;
+    const accent = this.props.accent ?? '#7E4045';
+
+    const base = { isKamer: false, isDeel: false, isMeubel: false, isEdit: false, isMove: false, isMenu: false, isOverigHead: false, isForm: false, isQuick: false };
+
+    const delVals = (n) => ({
+      name: n.name,
+      confirming: st.confirmDel === n.id,
+      notConfirming: st.confirmDel !== n.id,
+      askDel: () => this.setState({ confirmDel: n.id }),
+      cancelDel: () => this.setState({ confirmDel: null }),
+      doDel: () => this.removeNode(n.id)
+    });
+
+    const dropVals = (target) => ({
+      dropBg: st.overId === target ? '#F3E1DA' : 'transparent',
+      dragOver: (e) => {
+        if (!this._drag) return;
+        e.preventDefault();
+        if (this.state.overId !== target) this.setState({ overId: target });
+      },
+      drop: (e) => {
+        e.preventDefault();
+        const id = this._drag;
+        this._drag = null;
+        const n = this.state.data.nodes.find((x) => x.id === id);
+        if (n && n.parent !== target) this.moveNode(id, target);
+        this.setState({ overId: null });
+      }
+    });
+
+    const inputVals = (parent) => ({
+      pid: parent.id,
+      parentName: parent.name,
+      draft: st.drafts[parent.id] || '',
+      onDraft: (e) => {
+        const next = Object.assign({}, this.state.drafts);
+        next[parent.id] = e.target.value;
+        this.setState({ drafts: next });
+      },
+      submit: () => this.addChild(parent.id),
+      onKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addChild(parent.id); } }
+    });
+
+    const rows = [];
+    const buyList = [];
+    const allList = [];
+    const targets = [];
+    nodes.filter((n) => n.kind === 'room').forEach((k) => {
+      nodes.filter((n) => n.parent === k.id).forEach((dl) => targets.push({ id: dl.id, label: k.name + '  ›  ' + dl.name }));
+    });
+
+    const pushMeubel = (meubel, crumb, pad) => {
+      allList.push({ node: meubel, crumb: crumb });
+      if (st.editing === meubel.id) {
+        rows.push(Object.assign({}, base, {
+          isEdit: true, pad: pad, eid: meubel.id, draft: st.editName,
+          onDraft: (e) => this.setState({ editName: e.target.value }),
+          save: () => this.renameNode(meubel.id),
+          onKey: (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.renameNode(meubel.id); }
+            else if (e.key === 'Escape') { this.setState({ editing: null }); }
+          },
+          cancel: () => this.setState({ editing: null })
+        }));
+      } else {
+        const stIdx = STATUS.findIndex((s) => s.key === meubel.status);
+        const stCur = stIdx >= 0 ? STATUS[stIdx] : null;
+        rows.push(Object.assign({}, base, delVals(meubel), {
+          isMeubel: true, pad: pad,
+          open: () => this.setState({ view: 'buy', prev: 'home', focusId: meubel.id, adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+          statusLabel: stCur ? stCur.label : 'Status kiezen',
+          stBg: stCur ? stCur.color : '#FBF7F2',
+          stFg: stCur ? '#FFFFFF' : '#3A2426',
+          stBd: stCur ? stCur.color : '#A98F88',
+          openStatus: (e) => this.openPop('status', meubel.id, e),
+          openMenu: (e) => this.openPop('meubel', meubel.id, e),
+          dragStart: (e) => {
+            this._drag = meubel.id;
+            if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', meubel.id); } catch (x) {} }
+          },
+          dragEnd: () => { this._drag = null; this.setState({ overId: null }); }
+        }, dropVals(meubel.parent)));
+        if (st.moving === meubel.id) {
+          const opts = targets.filter((t) => t.id !== meubel.parent).map((t) => ({ label: t.label, go: () => this.moveNode(meubel.id, t.id) }));
+          rows.push(Object.assign({}, base, {
+            isMove: true, pad: pad, targets: opts, noTargets: opts.length === 0,
+            cancel: () => this.setState({ moving: null })
+          }));
+        }
+      }
+      if (meubel.status === 'kopen') buyList.push({ node: meubel, crumb: crumb });
+    };
+
+    nodes.filter((n) => n.kind === 'room').forEach((kamer) => {
+      rows.push(Object.assign({}, base, delVals(kamer), {
+        isKamer: true,
+        toggleAdd: () => {
+          const cur = this.state.adding;
+          const opening = !(cur && cur.parent === kamer.id);
+          this.setState({ adding: opening ? { parent: kamer.id } : null, confirmDel: null });
+          if (opening) this.focusEl('in-' + kamer.id);
+        }
+      }));
+      if (st.adding && st.adding.parent === kamer.id) {
+        rows.push(Object.assign({}, base, inputVals(kamer), {
+          isForm: true, pad: '28px', placeholder: 'Naam van het deel',
+          cancel: () => this.setState({ adding: null })
+        }));
+      }
+      nodes.filter((n) => n.parent === kamer.id).forEach((deel) => {
+        rows.push(Object.assign({}, base, delVals(deel), dropVals(deel.id), { isDeel: true, pad: '28px' }));
+        nodes.filter((n) => n.parent === deel.id).forEach((meubel) => pushMeubel(meubel, kamer.name + '  ›  ' + deel.name, '44px'));
+        rows.push(Object.assign({}, base, inputVals(deel), dropVals(deel.id), { isQuick: true, pad: '44px', qPlaceholder: 'Meubel toevoegen' }));
+      });
+    });
+
+    const overigEntry = { node: { id: 'overig', name: 'Overig' }, crumb: 'Losse leuke dingen, nog zonder meubel' };
+
+    const inboxEntry = { node: { id: 'inbox', name: 'Nog te sorteren' }, crumb: 'Net bewaard, nog te verdelen over een meubel of Overig' };
+
+    const focus = st.focusId === 'inbox' ? inboxEntry : (st.focusId === 'overig' ? overigEntry : (st.focusId ? allList.find((b) => b.node.id === st.focusId) : null));
+    const sections = (focus ? [focus] : buyList.concat([overigEntry])).map((b) => {
+      const n = b.node;
+      const mine = links.filter((l) => l.nodeId === n.id).sort((a, c) => c.t - a.t);
+      const open = st.addFor === n.id;
+      return {
+        name: n.name,
+        crumb: b.crumb,
+        formOpen: open,
+        toggleLabel: open ? 'Sluiten' : 'Link toevoegen',
+        addNote: () => this.addNote(n.id),
+        onPasteArea: (e) => {
+          const t = e.target;
+          if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+          const text = (e.clipboardData && e.clipboardData.getData('text')) || '';
+          const url = this.fixUrl(text.trim().split(/\s+/)[0]);
+          if (!url) return;
+          e.preventDefault();
+          this.addLinkQuick(n.id, url);
+        },
+        toggle: () => this.setState({ addFor: this.state.addFor === n.id ? null : n.id, ld: BLANK_LD, urlError: false }),
+        noLinks: mine.length === 0,
+        items: mine.map((l) => ({
+          id: l.id,
+          isLink: !l.note,
+          isNote: !!l.note,
+          url: l.url,
+          moveOpen: st.movingLink === l.id,
+          openMenu: (e) => this.openPop('link', l.id, e),
+          cancelMove: () => this.setState({ movingLink: null }),
+          moveTargets: allList
+            .filter((x) => x.node.id !== n.id)
+            .map((x) => ({ label: x.crumb + '  ›  ' + x.node.name, go: () => this.moveLink(l.id, x.node.id) }))
+            .concat(n.id !== 'overig' ? [{ label: 'Overig', go: () => this.moveLink(l.id, 'overig') }] : []),
+          noMoveTargets: n.id === 'overig' && allList.length === 0,
+          wrapPad: l.note ? '0' : '8px',
+          wrapBg: l.note ? 'transparent' : '#FBF7F2',
+          wrapBorder: l.note ? '0' : '1px solid #E3D6CA',
+          photoLabel: l.shot ? 'Screenshot van de pagina' : 'Eigen foto',
+          clearPhoto: () => this.updateLink(l.id, { img: '', shot: false }),
+          onImgError: () => this.updateLink(l.id, { img: '', shot: false }),
+          editing: st.noteEdit === l.id,
+          notEditing: st.noteEdit !== l.id,
+          noteDraft: st.noteDraft,
+          noteText: l.comment || (l.note ? 'Typ een comment' : 'Comment toevoegen'),
+          noteColor: l.comment ? '#3A2426' : '#6F5654',
+          startNote: () => this.startNote(l.id),
+          onNoteDraft: (e) => this.setState({ noteDraft: e.target.value }),
+          saveNote: () => this.saveNote(l.id),
+          onNoteKey: (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.saveNote(l.id); }
+            else if (e.key === 'Escape') { this.cancelNote(l.id); }
+          },
+          onPhPaste: (e) => {
+            const its = (e.clipboardData && e.clipboardData.items) || [];
+            for (let i = 0; i < its.length; i++) {
+              if (its[i].kind === 'file' && its[i].type.indexOf('image/') === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.readImage(its[i].getAsFile(), (u) => this.updateLink(l.id, { img: u, shot: false }));
+                return;
+              }
+            }
+          },
+          onPhFile: (e) => {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            this.readImage(f, (u) => this.updateLink(l.id, { img: u, shot: false }));
+          },
+          shop: l.shop || this.shopOf(l.url),
+          host: this.hostOf(l.url),
+          img: l.img,
+          hasImg: !!l.img,
+          noImg: !l.img,
+          comment: l.comment || '',
+          onComment: (e) => this.updateLink(l.id, { comment: e.target.value }),
+          confirming: st.confirmLink === l.id,
+          notConfirming: st.confirmLink !== l.id,
+          askDel: () => this.setState({ confirmLink: l.id }),
+          cancelDel: () => this.setState({ confirmLink: null }),
+          doDel: () => this.commit({ nodes: this.state.data.nodes, links: this.state.data.links.filter((x) => x.id !== l.id) }, { confirmLink: null })
+        }))
+      };
+    });
+
+    const preview = st.ld.img || '';
+
+    // Mini-menu: status van een meubel, acties voor een meubel of acties voor een link
+    let popItems = [];
+    const pop = st.pop;
+    const closeP = () => this.setState({ pop: null });
+    const item = (label, go, o) => Object.assign({ label: label, go: go, fg: '#3A2426', bg: 'transparent', dot: 'transparent', dotDisplay: 'none' }, o || {});
+    if (pop && pop.kind === 'status') {
+      const m = allList.find((b) => b.node.id === pop.id);
+      if (m) {
+        popItems = STATUS.map((s) => item(s.label, () => { this.setStatus(pop.id, s.key); closeP(); }, {
+          dot: s.color, dotDisplay: 'block', bg: m.node.status === s.key ? '#EBD7CF' : 'transparent'
+        })).concat([item('Geen status', () => { this.setStatus(pop.id, null); closeP(); }, {
+          dot: '#FBF7F2', dotDisplay: 'block', bg: !m.node.status ? '#EBD7CF' : 'transparent'
+        })]);
+      }
+    } else if (pop && pop.kind === 'meubel') {
+      const m = allList.find((b) => b.node.id === pop.id);
+      if (m) {
+        popItems = [
+          item('Verplaats', () => this.setState({ pop: null, moving: m.node.id, editing: null, confirmDel: null })),
+          item('Pas aan', () => {
+            this.setState({ pop: null, editing: m.node.id, editName: m.node.name, confirmDel: null, moving: null });
+            this.focusEl('ed-' + m.node.id);
+          }),
+          item('Verwijder', () => this.setState({ pop: null, confirmDel: m.node.id, editing: null, moving: null }), { fg: '#8C1D2B' })
+        ];
+      }
+    } else if (pop && pop.kind === 'link' && links.some((x) => x.id === pop.id)) {
+      popItems = [
+        item('Verplaats', () => this.setState({ pop: null, movingLink: pop.id })),
+        item('Verwijder', () => this.setState({ pop: null, confirmLink: pop.id }), { fg: '#8C1D2B' })
+      ];
+    }
+
+    return {
+      accent: accent,
+      warnStorage: !st.persistOk,
+
+      popOpen: popItems.length > 0,
+      popItems: popItems,
+      popTop: pop ? pop.top + 'px' : '0px',
+      popLeft: pop ? pop.left + 'px' : '0px',
+      closePop: closeP,
+
+      showStart: st.view === 'start',
+      showHome: st.view === 'home',
+      showBuy: st.view === 'buy',
+      goBuy: () => this.setState({ view: 'buy', prev: this.state.view === 'buy' ? this.state.prev : this.state.view, focusId: null, adding: null, confirmDel: null, editing: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+      goHome: () => this.setState({ view: 'home', focusId: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+      goStart: () => this.setState({ view: 'start', focusId: null, addFor: null, confirmLink: null, adding: null, ld: BLANK_LD, urlError: false }),
+      goBack: () => this.setState({ view: this.state.prev || 'start', focusId: null, addFor: null, confirmLink: null, moving: null, movingLink: null, ld: BLANK_LD, urlError: false }),
+      backLabel: st.prev === 'home' ? 'Inventarislijst' : 'Start',
+      meubelCount: allList.length,
+      buyCount: buyList.length,
+
+      hasRooms: rows.length > 0,
+      noRooms: rows.length === 0,
+      rows: rows,
+      roomDraft: st.roomDraft,
+      onRoomDraft: (e) => this.setState({ roomDraft: e.target.value }),
+      addRoom: () => this.addRoomNow(),
+      onRoomKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addRoomNow(); } },
+
+      sections: sections,
+      noBuy: !focus && buyList.length === 0,
+      focusMode: !!focus,
+      pageTitle: st.focusId === 'inbox' ? 'Nog te sorteren' : (st.focusId === 'overig' ? 'Overig' : (focus ? 'Links' : 'Nog kopen')),
+      capDraft: st.capDraft,
+      capError: st.capError,
+      capDone: st.capDone,
+      onCapDraft: (e) => this.setState({ capDraft: e.target.value, capError: false, capDone: false }),
+      onCapKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.capSaveNow(); } },
+      capSave: () => this.capSaveNow(),
+      inboxCount: links.filter((l) => l.nodeId === 'inbox').length,
+      goInbox: () => this.setState({ view: 'buy', prev: this.state.view === 'buy' ? this.state.prev : this.state.view, focusId: 'inbox', adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+
+      ld: st.ld,
+      urlError: st.urlError,
+      preview: preview,
+      hasPreview: !!preview,
+      onUrl: (e) => this.setState({ ld: Object.assign({}, this.state.ld, { url: e.target.value }), urlError: false }),
+      onComment: (e) => this.setState({ ld: Object.assign({}, this.state.ld, { comment: e.target.value }) }),
+      onLinkKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addLinkNow(); } },
+      onFile: (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        this.readImage(f, (u) => this.setState({ ld: Object.assign({}, this.state.ld, { img: u }) }));
+      },
+      onPaste: (e) => {
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file' && items[i].type.indexOf('image/') === 0) {
+            e.preventDefault();
+            this.readImage(items[i].getAsFile(), (u) => this.setState({ ld: Object.assign({}, this.state.ld, { img: u }) }));
+            return;
+          }
+        }
+      },
+      clearImg: () => this.setState({ ld: Object.assign({}, this.state.ld, { img: '' }) }),
+      addLink: () => this.addLinkNow()
+    };
+  }
+}
+
+
+  comp = new Component({});
+  var app = Vue.createApp({
+    template: TEMPLATE,
+    setup: function () { shared = Vue.shallowReactive(comp.renderVals()); return shared; }
+  });
+  app.mount('#app');
+  if (comp.componentDidMount) comp.componentDidMount();
+})();
+</script>
+</body>
+</html>
