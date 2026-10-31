@@ -276,7 +276,7 @@ class Component extends DCLogic {
     this.commit({
       nodes: this.state.data.nodes.concat([{ id: id, kind: 'room', parent: null, name: name }]),
       links: this.state.data.links
-    }, { roomDraft: '', adding: { parent: id } });
+    }, { roomDraft: '', adding: null });
     this.focusEl('in-' + id);
   }
 
@@ -363,18 +363,20 @@ class Component extends DCLogic {
     }, { confirmDel: null, adding: null, addFor: gone[this.state.addFor] ? null : this.state.addFor });
   }
 
-  addChild(parentId) {
-    const inputId = 'in-' + parentId;
-    const name = this.val(inputId, this.state.drafts[parentId]);
+  // kind 'item' = een deel binnen een kamer; anders een meubel (direct in een kamer of in een deel)
+  addChild(parentId, wanted) {
+    const key = wanted === 'item' ? 'd-' + parentId : parentId;
+    const inputId = 'in-' + key;
+    const name = this.val(inputId, this.state.drafts[key]);
     if (!name) return;
     const d = this.state.data;
     const parent = parentId === 'overig' ? { kind: 'item' } : d.nodes.find((n) => n.id === parentId);
     if (!parent) return;
     this.clearEl(inputId);
-    const kind = parent.kind === 'room' ? 'item' : 'sub';
+    const kind = wanted === 'item' ? 'item' : 'sub';
     const id = this.uid();
     const drafts = Object.assign({}, this.state.drafts);
-    drafts[parentId] = '';
+    drafts[key] = '';
     this.commit({
       nodes: d.nodes.concat([{ id: id, kind: kind, parent: parentId, name: name }]),
       links: d.links
@@ -426,25 +428,29 @@ class Component extends DCLogic {
       }
     });
 
-    const inputVals = (parent) => ({
-      pid: parent.id,
-      parentName: parent.name,
-      draft: st.drafts[parent.id] || '',
-      onDraft: (e) => {
-        const next = Object.assign({}, this.state.drafts);
-        next[parent.id] = e.target.value;
-        this.setState({ drafts: next });
-      },
-      submit: () => this.addChild(parent.id),
-      onKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addChild(parent.id); } }
-    });
+    const inputVals = (parent, kind) => {
+      const key = kind === 'item' ? 'd-' + parent.id : parent.id;
+      return {
+        pid: key,
+        parentName: parent.name,
+        draft: st.drafts[key] || '',
+        onDraft: (e) => {
+          const next = Object.assign({}, this.state.drafts);
+          next[key] = e.target.value;
+          this.setState({ drafts: next });
+        },
+        submit: () => this.addChild(parent.id, kind),
+        onKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addChild(parent.id, kind); } }
+      };
+    };
 
     const rows = [];
     const buyList = [];
     const allList = [];
     const targets = [];
     nodes.filter((n) => n.kind === 'room').forEach((k) => {
-      nodes.filter((n) => n.parent === k.id).forEach((dl) => targets.push({ id: dl.id, label: k.name + '  ›  ' + dl.name }));
+      targets.push({ id: k.id, label: k.name });
+      nodes.filter((n) => n.parent === k.id && n.kind === 'item').forEach((dl) => targets.push({ id: dl.id, label: k.name + '  ›  ' + dl.name }));
     });
 
     const pushMeubel = (meubel, crumb, pad) => {
@@ -496,16 +502,19 @@ class Component extends DCLogic {
           const cur = this.state.adding;
           const opening = !(cur && cur.parent === kamer.id);
           this.setState({ adding: opening ? { parent: kamer.id } : null, confirmDel: null });
-          if (opening) this.focusEl('in-' + kamer.id);
+          if (opening) this.focusEl('in-d-' + kamer.id);
         }
       }));
+      // meubels direct in de kamer (zonder deel)
+      nodes.filter((n) => n.parent === kamer.id && n.kind === 'sub').forEach((meubel) => pushMeubel(meubel, kamer.name, '28px'));
+      rows.push(Object.assign({}, base, inputVals(kamer), dropVals(kamer.id), { isQuick: true, pad: '28px', qPlaceholder: 'Meubel toevoegen' }));
       if (st.adding && st.adding.parent === kamer.id) {
-        rows.push(Object.assign({}, base, inputVals(kamer), {
-          isForm: true, pad: '28px', placeholder: 'Naam van het deel',
+        rows.push(Object.assign({}, base, inputVals(kamer, 'item'), {
+          isForm: true, pad: '28px', placeholder: 'Naam van het deel, bijvoorbeeld keuken',
           cancel: () => this.setState({ adding: null })
         }));
       }
-      nodes.filter((n) => n.parent === kamer.id).forEach((deel) => {
+      nodes.filter((n) => n.parent === kamer.id && n.kind === 'item').forEach((deel) => {
         rows.push(Object.assign({}, base, delVals(deel), dropVals(deel.id), { isDeel: true, pad: '28px' }));
         nodes.filter((n) => n.parent === deel.id).forEach((meubel) => pushMeubel(meubel, kamer.name + '  ›  ' + deel.name, '44px'));
         rows.push(Object.assign({}, base, inputVals(deel), dropVals(deel.id), { isQuick: true, pad: '44px', qPlaceholder: 'Meubel toevoegen' }));
