@@ -12,3 +12,5 @@ Persoonlijke tool voor inventaris en winkellinks. Draait op Cloudflare Pages, ge
 4. In het Pages-project: Settings › Bindings › Add › KV namespace. Variable name `STORE`, kies de namespace. Zet dit voor Production en Preview. Deploy daarna opnieuw.
 5. In het Pages-project: Settings › General › Access policy › Enable. Laat alleen je eigen e-mailadres toe.
 
+## Prijs automatisch lezen
+`functions/api/price.js` haalt een productpagina op en leest de prijs uit de gegevens die winkels voor Google op hun pagina zetten. Er is geen extra instelling voor nodig. Winkels die bots blokkeren of de prijs pas met JavaScript tonen, geven geen prijs. Dan vul je hem zelf in.
