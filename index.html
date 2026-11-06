@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F3ECE3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Huislinks">
+<title>Huislinks</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#7E4045}a:hover{color:#5E2E33}
+a.btn,a.btn:hover{color:#FFFFFF}
+button,input,textarea{font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,.pick:focus-within{outline:3px solid #B0575F;outline-offset:2px}
+.row:hover{background:#F5EBE4}
+::placeholder{color:#7D6663;opacity:1}
+.zone:focus{outline:none;box-shadow:0 0 0 3px #E3C8BE}
+.ph:focus{outline:none;border-color:#B0575F;box-shadow:0 0 0 3px #E3C8BE}
+.sr{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.pin .tip{display:none}
+.pin:hover .tip,.pin:focus-visible .tip{display:block}
+.pin:hover,.pin:focus-visible{z-index:5}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<script src="/vue.global.prod.js"></script>
+<script>
+(function () {
+  var TEMPLATE = "\n\n<div style=\"min-height: 1000px; background: #F3ECE3; color: #3A2426; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; padding: 48px 16px 96px; box-sizing: border-box\">\n<div style=\"max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px\">\n\n<template v-if=\"warnStorage\">\n<div style=\"background: #FBEAE6; border: 1px solid #E3B3A9; border-radius: 8px; padding: 12px 16px; font-size: 14px; color: #6E1F14\">Opslaan online lukt nu niet. Wat je invoert staat alleen op dit apparaat en we proberen het opnieuw.<\/div>\n<\/template>\n\n<!-- ============ SLEPEN: zwevend label ============ -->\n<template v-if=\"dragOn\">\n<div :style=\"`position: fixed; left: ${dragLeft}; top: ${dragTop}; z-index: 30; transform: translate(12px, -50%); padding: 6px 12px; font-size: 14px; font-weight: 700; color: #FFFFFF; background: #3A2426; border-radius: 999px; box-shadow: 0 4px 12px rgba(58, 36, 38, 0.3); pointer-events: none; white-space: nowrap`\">{{dragName}}<\/div>\n<\/template>\n\n<!-- ============ MINI-MENU (status, meubel, link) ============ -->\n<template v-if=\"popOpen\">\n<button type=\"button\" aria-label=\"Sluit menu\" @click=\"closePop\" style=\"position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; background: transparent; border: 0; cursor: default\"><\/button>\n<div role=\"menu\" :style=\"`position: fixed; top: ${popTop}; left: ${popLeft}; z-index: 21; width: 164px; box-sizing: border-box; padding: 4px; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; box-shadow: 0 6px 18px rgba(58, 36, 38, 0.18)`\">\n<template v-if=\"hasPopTitle\">\n<div style=\"padding: 6px 10px 4px; font-size: 12px; font-weight: 700; color: #6F5654; overflow-wrap: anywhere\">{{popTitle}}<\/div>\n<\/template>\n<template v-for=\"(p, __i0) in popItems\" :key=\"__i0\">\n<button type=\"button\" role=\"menuitem\" @click=\"p.go\" :style=\"`display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; box-sizing: border-box; padding: 0 10px; font-size: 14px; font-weight: 600; text-align: left; color: ${p.fg}; background: ${p.bg}; border: 0; border-radius: 6px; cursor: pointer`\">\n<span :style=\"`display: ${p.dotDisplay}; flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${p.dot}; border: 1px solid #A98F88`\"><\/span>\n{{p.label}}\n<\/button>\n<\/template>\n<template v-if=\"hasPopInput\">\n<div style=\"padding: 4px 4px 2px\">\n<input id=\"pop-in\" type=\"text\" aria-label=\"Zelf een status typen, bevestig met Enter\" placeholder=\"Zelf typen, dan Enter\" :value=\"popInputValue\" @input=\"onPopInput\" @keydown=\"onPopInputKey\" style=\"width: 100%; min-height: 40px; box-sizing: border-box; padding: 0 10px; font-size: 14px; color: #3A2426; background: #FFFFFF; border: 1px solid #A98F88; border-radius: 6px\">\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- ============ STARTPAGINA ============ -->\n<template v-if=\"showStart\">\n<div style=\"display: flex; flex-direction: column; gap: 28px\">\n\n<div style=\"display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 16px; text-align: center\">\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 48px); line-height: 1.05; letter-spacing: -0.02em\">Huislinks<\/h1>\n<\/div>\n\n<div style=\"display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 16px 24px; text-align: center; background: #EBD7CF; border-radius: 16px\">\n<div style=\"font-size: 24px; font-weight: 700; color: #3A2426\">Link bewaren<\/div>\n<div style=\"font-size: 15px; color: #5C3B3C; text-wrap: pretty\">Plak een link, of maak in de winkel een foto met de naam of het model. Verdeel het later onder een meubel.<\/div>\n<div style=\"display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 560px\">\n<input id=\"cap-in\" type=\"text\" aria-label=\"Plak een link\" placeholder=\"Plak een link\" :value=\"capDraft\" @input=\"onCapDraft\" @keydown=\"onCapKey\" style=\"width: 100%; min-height: 56px; box-sizing: border-box; padding: 0 18px; font-size: 17px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 12px\">\n<input id=\"cap-name\" type=\"text\" aria-label=\"Naam of model\" placeholder=\"Naam of model\" :value=\"capName\" @input=\"onCapName\" @keydown=\"onCapKey\" style=\"width: 100%; min-height: 56px; box-sizing: border-box; padding: 0 18px; font-size: 17px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 12px\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<label class=\"pick\" style=\"position: relative; flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; box-sizing: border-box; padding: 0 16px; font-size: 16px; font-weight: 700; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 12px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 8h3l2-3h6l2 3h3v11H4z\" /><circle cx=\"12\" cy=\"13\" r=\"3.5\" /><\/svg>\nFoto maken of kiezen\n<input class=\"sr\" type=\"file\" accept=\"image/*\" aria-label=\"Foto maken of kiezen\" @input=\"onCapPhoto\">\n<\/label>\n<template v-if=\"hasCapPhoto\">\n<img :src=\"capPhoto\" alt=\"Gekozen foto\" style=\"flex: none; display: block; width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 1px solid #A98F88\">\n<button type=\"button\" @click=\"clearCapPhoto\" aria-label=\"Foto weghalen\" style=\"flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/template>\n<\/div>\n<button type=\"button\" @click=\"capSave\" :style=\"`width: 100%; min-height: 56px; padding: 0 22px; font-size: 17px; font-weight: 700; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 12px; cursor: pointer`\">Bewaar<\/button>\n<\/div>\n<template v-if=\"capError\">\n<span style=\"font-size: 14px; font-weight: 700; color: #8C1D2B\">{{capErrorText}}<\/span>\n<\/template>\n<template v-if=\"capDone\">\n<span style=\"font-size: 14px; font-weight: 700; color: #3A2426\">Bewaard bij “Nog te sorteren”.<\/span>\n<\/template>\n<button type=\"button\" @click=\"goInbox\" style=\"min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Nog te sorteren ({{inboxCount}})<\/button>\n<\/div>\n\n<div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px\">\n<button type=\"button\" @click=\"goHome\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 96px; box-sizing: border-box; padding: 16px 20px; text-align: left; color: #3A2426; background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 14px; cursor: pointer\">\n<span style=\"display: flex; flex-direction: column; gap: 4px\">\n<span style=\"font-size: 22px; font-weight: 700\">Inventarislijst<\/span>\n<span style=\"font-size: 14px; color: #6F5654\">{{meubelCount}} in totaal<\/span>\n<\/span>\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#6F5654\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<button type=\"button\" @click=\"goBuy\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 96px; box-sizing: border-box; padding: 16px 20px; text-align: left; color: #3A2426; background: #F3E1DA; border: 1px solid #E3C8BE; border-radius: 14px; cursor: pointer\">\n<span style=\"display: flex; flex-direction: column; gap: 4px\">\n<span style=\"font-size: 22px; font-weight: 700\">Nog kopen<\/span>\n<span style=\"font-size: 14px; color: #5C3B3C\">{{buyCount}} om te kopen<\/span>\n<\/span>\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#5C3B3C\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<button type=\"button\" @click=\"goPlan\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 96px; box-sizing: border-box; padding: 16px 20px; text-align: left; color: #3A2426; background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 14px; cursor: pointer\">\n<span style=\"display: flex; flex-direction: column; gap: 4px\">\n<span style=\"font-size: 22px; font-weight: 700\">Huis indeling<\/span>\n<span style=\"font-size: 14px; color: #6F5654\">{{placedCount}} op de plattegrond<\/span>\n<\/span>\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#6F5654\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<\/div>\n\n<\/div>\n<\/template>\n\n<!-- ============ HUIS INDELING ============ -->\n<template v-if=\"showPlan\">\n<div @paste=\"onPlanPaste\" style=\"display: flex; flex-direction: column; gap: 20px\">\n<button type=\"button\" @click=\"goStart\" style=\"align-self: flex-start; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px; font-size: 15px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\" /><\/svg>\nStart\n<\/button>\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 44px); line-height: 1.05; letter-spacing: -0.02em\">Huis indeling<\/h1>\n\n<template v-if=\"noPlanImg\">\n<label class=\"pick\" style=\"position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 220px; box-sizing: border-box; padding: 24px; text-align: center; font-size: 17px; font-weight: 700; color: #3A2426; background: #EBD9D0; border: 1px dashed #A38A83; border-radius: 12px; cursor: pointer\">\nKies een foto van je plattegrond\n<span style=\"font-size: 14px; font-weight: 400; color: #5C3B3C\">Of plak hem hier met Ctrl+V<\/span>\n<input class=\"sr\" type=\"file\" accept=\"image/*\" @input=\"onPlanFile\">\n<\/label>\n<\/template>\n\n<template v-if=\"hasPlanImg\">\n<div style=\"display: flex; flex-direction: column; gap: 14px\">\n<p style=\"margin: 0; font-size: 14px; color: #5C3B3C\">Tik op een meubel voor de links. Sleep het naar de juiste plek, of buiten de plattegrond om het weg te halen.<\/p>\n<div id=\"plan-box\" style=\"position: relative; width: 100%; max-width: 720px; margin: 0 auto; line-height: 0\">\n<img :src=\"planImg\" alt=\"Plattegrond van je huis\" draggable=\"false\" style=\"display: block; width: 100%; height: auto; border: 1px solid #E3D6CA; border-radius: 12px; background: #FFFFFF; user-select: none\">\n<template v-for=\"(p, __i1) in pins\" :key=\"__i1\">\n<button type=\"button\" class=\"pin\" @pointerdown=\"p.down\" @keydown=\"p.key\" :aria-label=\"`${p.name}, open de links. Delete haalt hem van de plattegrond`\" :style=\"`opacity: ${p.ghost}; position: absolute; left: ${p.left}; top: ${p.top}; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; color: #3A2426; background: transparent; border: 0; cursor: grab; touch-action: none; user-select: none`\">\n<template v-if=\"p.hasIcon\">\n<span :style=\"`display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; box-sizing: border-box; background: #FBF7F2; border: 2.5px solid ${p.dot}; border-radius: 50%; box-shadow: 0 2px 5px rgba(58, 36, 38, 0.28)`\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path :d=\"p.icon\" /><\/svg>\n<\/span>\n<\/template>\n<template v-if=\"p.noIcon\">\n<span :style=\"`width: 18px; height: 18px; box-sizing: border-box; background: ${p.dot}; border: 2px solid #FBF7F2; border-radius: 50%; box-shadow: 0 2px 5px rgba(58, 36, 38, 0.28)`\"><\/span>\n<\/template>\n<span class=\"tip\" style=\"position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 2px; padding: 4px 10px; font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; color: #FFFFFF; background: #3A2426; border-radius: 6px; pointer-events: none\">{{p.name}}<\/span>\n<\/button>\n<\/template>\n<\/div>\n\n<div style=\"display: flex; flex-direction: column; gap: 8px\">\n<span style=\"font-size: 13px; font-weight: 700; color: #5C3B3C\">Nog niet op de plattegrond<\/span>\n<span style=\"font-size: 14px; color: #6F5654\">{{trayHint}}<\/span>\n<div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n<template v-for=\"(c, __i2) in chips\" :key=\"__i2\">\n<button type=\"button\" @click=\"c.place\" style=\"min-height: 40px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px; cursor: pointer\">+ {{c.name}}<\/button>\n<\/template>\n<\/div>\n<\/div>\n\n<button type=\"button\" @click=\"clearPlan\" style=\"align-self: flex-start; min-height: 44px; padding: 0; font-size: 14px; font-weight: 600; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Andere plattegrond kiezen<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- ============ INVENTARISLIJST ============ -->\n<template v-if=\"showHome\">\n<div style=\"display: flex; flex-direction: column; gap: 24px\">\n\n<div style=\"display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px\">\n<div style=\"display: flex; flex-direction: column; gap: 8px\">\n<button type=\"button\" @click=\"goStart\" style=\"align-self: flex-start; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px; font-size: 15px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\" /><\/svg>\nStart\n<\/button>\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 44px); line-height: 1.05; letter-spacing: -0.02em\">Inventarislijst<\/h1>\n<p style=\"margin: 0; font-size: 17px; color: #6F5654; text-wrap: pretty\">Zet je meubels onder een kamer en deel, en kies wat je ermee doet.<\/p>\n<\/div>\n<button type=\"button\" @click=\"goBuy\" style=\"display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px 0 20px; font-size: 16px; font-weight: 600; color: #5C2E33; background: #EBD7CF; border: 1px solid #D9B8AE; border-radius: 999px; cursor: pointer\">\nNog kopen\n<span style=\"display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; box-sizing: border-box; padding: 0 8px; font-size: 14px; font-weight: 700; color: #FFFFFF; background: #7E4045; border-radius: 14px\">{{buyCount}}<\/span>\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /><\/svg>\n<\/button>\n<\/div>\n\n<template v-if=\"hasRooms\">\n<div style=\"background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 12px; overflow: hidden\">\n\n<template v-for=\"(r, __i3) in rows\" :key=\"__i3\">\n\n<!-- Kamer: een omhulsel, klein en rustig -->\n<template v-if=\"r.isKamer\">\n<div :data-drop=\"r.dropId\" :data-pos=\"r.dropPos\" :style=\"`display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 2px 8px 2px 16px; background: ${r.kamerBg}; border-top: 1px solid #E3D6CA; min-height: 48px; box-sizing: border-box`\">\n<div style=\"flex: 1 1 160px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5C3B3C\">{{r.name}}<\/div>\n<template v-if=\"r.notConfirming\">\n<div style=\"display: flex; align-items: center\">\n<button type=\"button\" @click=\"r.toggleAdd\" style=\"display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 10px; font-size: 13px; font-weight: 600; color: #5C3B3C; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\nDeel\n<\/button>\n<button type=\"button\" @click=\"r.askDel\" :aria-label=\"`Verwijder ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/div>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder alles<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Deel: ook een omhulsel, iets lichter -->\n<template v-if=\"r.isDeel\">\n<div :data-drop=\"r.dropId\" :data-pos=\"r.dropPos\" :data-dref=\"r.deelRef\" :style=\"`box-shadow: ${r.lineShadow}; opacity: ${r.rowOpacity}; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 0 8px 0 ${r.pad}; min-height: 40px; border-top: 1px solid #ECE1D6; box-sizing: border-box; background: ${r.dropBg}`\">\n<button type=\"button\" @pointerdown=\"r.gripDown\" :aria-label=\"`Sleep ${r.name} naar een andere plek`\" style=\"flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 40px; padding: 0; margin-left: -6px; color: #A98F88; background: transparent; border: 0; cursor: grab; touch-action: none; user-select: none\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"18\" viewBox=\"0 0 12 18\" fill=\"currentColor\"><circle cx=\"3\" cy=\"4\" r=\"1.4\" /><circle cx=\"9\" cy=\"4\" r=\"1.4\" /><circle cx=\"3\" cy=\"9\" r=\"1.4\" /><circle cx=\"9\" cy=\"9\" r=\"1.4\" /><circle cx=\"3\" cy=\"14\" r=\"1.4\" /><circle cx=\"9\" cy=\"14\" r=\"1.4\" /><\/svg>\n<\/button>\n<div style=\"flex: 1 1 160px; font-size: 15px; font-weight: 600; color: #5C3B3C\">{{r.name}}<\/div>\n<template v-if=\"r.notConfirming\">\n<button type=\"button\" @click=\"r.askDel\" :aria-label=\"`Verwijder ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Meubel: de hoofdzaak -->\n<template v-if=\"r.isMeubel\">\n<div class=\"row\" :data-drop=\"r.dropId\" :data-ref=\"r.dropRef\" :style=\"`box-shadow: ${r.lineShadow}; opacity: ${r.rowOpacity}; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 0 8px 0 ${r.pad}; border-top: 1px solid #F0E7DD; min-height: 48px; box-sizing: border-box; background: ${r.dropBg}`\">\n<button type=\"button\" @pointerdown=\"r.gripDown\" :aria-label=\"`Sleep ${r.name} naar een andere plek`\" style=\"flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 44px; padding: 0; margin-left: -6px; color: #A98F88; background: transparent; border: 0; cursor: grab; touch-action: none; user-select: none\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"18\" viewBox=\"0 0 12 18\" fill=\"currentColor\"><circle cx=\"3\" cy=\"4\" r=\"1.4\" /><circle cx=\"9\" cy=\"4\" r=\"1.4\" /><circle cx=\"3\" cy=\"9\" r=\"1.4\" /><circle cx=\"9\" cy=\"9\" r=\"1.4\" /><circle cx=\"3\" cy=\"14\" r=\"1.4\" /><circle cx=\"9\" cy=\"14\" r=\"1.4\" /><\/svg>\n<\/button>\n<button type=\"button\" @click=\"r.open\" :aria-label=\"`Open links voor ${r.name}`\" :style=\"`flex: 1 1 180px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; text-align: left; font-size: ${r.nameSize}; font-weight: 600; color: #3A2426; background: transparent; border: 0; cursor: pointer`\">\n<span>{{r.name}}<\/span>\n<\/button>\n<button type=\"button\" role=\"switch\" :aria-checked=\"r.nodeFav\" :aria-label=\"r.nodeFavAria\" @click=\"r.toggleNodeFav\" style=\"flex: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 40px; padding: 0; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" :fill=\"r.nodeFavFill\" :stroke=\"r.nodeFavStroke\" stroke-width=\"1.8\" stroke-linejoin=\"round\"><path d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z\" /><\/svg>\n<\/button>\n<button type=\"button\" @click=\"r.openStatus\" aria-haspopup=\"menu\" :aria-label=\"`Status van ${r.name}: ${r.statusLabel}. Klik om te wijzigen`\" style=\"min-height: 40px; padding: 0 1px; background: transparent; border: 0; cursor: pointer\">\n<span :style=\"`display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 10px; font-size: 12px; font-weight: 700; color: ${r.stFg}; background: ${r.stBg}; border: 1px solid ${r.stBd}; border-radius: 999px`\">{{r.statusLabel}}\n<svg aria-hidden=\"true\" width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 9l6 6 6-6\" /><\/svg><\/span>\n<\/button>\n<template v-if=\"r.notConfirming\">\n<button type=\"button\" @click=\"r.openMenu\" aria-haspopup=\"menu\" :aria-label=\"`Meer opties voor ${r.name}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"5\" cy=\"12\" r=\"1.8\" /><circle cx=\"12\" cy=\"12\" r=\"1.8\" /><circle cx=\"19\" cy=\"12\" r=\"1.8\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"r.confirming\">\n<div style=\"display: flex; align-items: center; gap: 8px\">\n<button type=\"button\" @click=\"r.doDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Ja, verwijder<\/button>\n<button type=\"button\" @click=\"r.cancelDel\" style=\"min-height: 44px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n<\/div>\n<\/template>\n\n<!-- Meubel verplaatsen naar een categorie -->\n<template v-if=\"r.isMove\">\n<div :style=\"`display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 12px ${r.pad}; background: #F8F0EA; border-top: 1px solid #F0E7DD`\">\n<span style=\"font-size: 13px; font-weight: 700; color: #5C3B3C\">Verplaats naar<\/span>\n<template v-if=\"r.noTargets\">\n<span style=\"font-size: 14px; color: #6F5654\">Maak eerst een kamer en een deel aan.<\/span>\n<\/template>\n<div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n<template v-for=\"(t, __i4) in r.targets\" :key=\"__i4\">\n<button type=\"button\" @click=\"t.go\" style=\"min-height: 40px; padding: 0 14px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px; cursor: pointer\">{{t.label}}<\/button>\n<\/template>\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 40px; padding: 0 10px; font-size: 14px; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/div>\n<\/template>\n\n<!-- Meubel aanpassen -->\n<template v-if=\"r.isEdit\">\n<div :style=\"`display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 16px 6px ${r.pad}; background: #F8F0EA; border-top: 1px solid #F0E7DD; min-height: 56px; box-sizing: border-box`\">\n<input :id=\"`ed-${r.eid}`\" type=\"text\" aria-label=\"Naam van het meubel\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" :style=\"`flex: 1 1 220px; max-width: 420px; min-height: 44px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 2px solid ${accent}; border-radius: 8px`\">\n<button type=\"button\" @click=\"r.save\" :style=\"`min-height: 44px; padding: 0 16px; font-size: 15px; font-weight: 600; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 8px; cursor: pointer`\">Opslaan<\/button>\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 44px; padding: 0 12px; font-size: 15px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n\n<!-- Meubel toevoegen: altijd zichtbaar onder elk deel -->\n<template v-if=\"r.isQuick\">\n<div :data-drop=\"r.dropId\" :data-pos=\"r.dropPos\" :style=\"`padding: 0 16px 8px ${r.pad}; background: ${r.dropBg}`\">\n<input :id=\"`in-${r.pid}`\" type=\"text\" :aria-label=\"`Meubel toevoegen aan ${r.parentName}, bevestig met Enter`\" :placeholder=\"r.qPlaceholder\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" style=\"width: 100%; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 4px; font-size: 15px; color: #3A2426; background: transparent; border: 0; border-bottom: 1px dashed #A38A83; border-radius: 0\">\n<\/div>\n<\/template>\n\n<!-- Deel toevoegen (onder een kamer) -->\n<template v-if=\"r.isForm\">\n<div :style=\"`display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px 12px ${r.pad}; background: #F8F0EA; border-top: 1px solid #ECE1D6`\">\n<input :id=\"`in-${r.pid}`\" type=\"text\" :aria-label=\"r.placeholder\" :placeholder=\"r.placeholder\" :value=\"r.draft\" @input=\"r.onDraft\" @keydown=\"r.onKey\" :autofocus=\"true\" style=\"flex: 1 1 220px; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 14px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<button type=\"button\" @click=\"r.cancel\" style=\"min-height: 44px; padding: 0 12px; font-size: 15px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/template>\n\n<\/template>\n<\/div>\n<\/template>\n\n<template v-if=\"noRooms\">\n<p style=\"margin: 0; font-size: 16px; color: #6F5654; font-style: italic\">Nog niets. Begin met een kamer, bijvoorbeeld de woonkamer.<\/p>\n<\/template>\n\n<div style=\"display: flex; flex-wrap: wrap; gap: 8px\">\n<input id=\"room-in\" type=\"text\" aria-label=\"Nieuwe kamer, bevestig met Enter\" placeholder=\"Nieuwe kamer\" :value=\"roomDraft\" @input=\"onRoomDraft\" @keydown=\"onRoomKey\" style=\"flex: 1 1 200px; max-width: 340px; min-height: 40px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<\/div>\n\n<\/div>\n<\/template>\n\n<!-- ============ NOG KOPEN ============ -->\n<template v-if=\"showBuy\">\n<div style=\"display: flex; flex-direction: column; gap: 24px\">\n\n<div style=\"display: flex; flex-direction: column; gap: 12px; align-items: flex-start\">\n<button type=\"button\" @click=\"goBack\" style=\"display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px; font-size: 15px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 10px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\" /><\/svg>\n{{backLabel}}\n<\/button>\n<h1 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: clamp(32px, 9vw, 44px); line-height: 1.05; letter-spacing: -0.02em\">{{pageTitle}}<\/h1>\n<template v-if=\"focusMode\">\n<button type=\"button\" @click=\"goBuy\" style=\"min-height: 44px; padding: 0; font-size: 15px; font-weight: 600; color: #9A4440; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Alles wat nog gekocht moet worden<\/button>\n<\/template>\n<\/div>\n\n<template v-if=\"noBuy\">\n<p style=\"margin: 0; max-width: 560px; font-size: 16px; color: #6F5654; text-wrap: pretty\">Nog geen meubels om te kopen. Kies in de inventarislijst bij een meubel “Nog kopen”, dan verschijnt het hier.<\/p>\n<\/template>\n\n<template v-for=\"(s, __i5) in sections\" :key=\"__i5\">\n<div class=\"zone\" tabindex=\"0\" role=\"group\" :aria-label=\"`Links voor ${s.name}`\" @paste=\"s.onPasteArea\" style=\"display: flex; flex-direction: column; gap: 14px; background: #FBF7F2; border: 1px solid #E3D6CA; border-radius: 12px; padding: 16px 20px 20px\">\n\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px\">\n<div style=\"display: flex; flex-direction: column; gap: 2px\">\n<span style=\"font-size: 13px; color: #6F5654\">{{s.crumb}}<\/span>\n<h2 style=\"margin: 0; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-weight: 700; font-size: 24px; line-height: 1.15\">{{s.name}}<\/h2>\n<\/div>\n<div style=\"display: flex; align-items: center\">\n<button type=\"button\" @click=\"s.addNote\" style=\"min-height: 44px; padding: 0 2px; background: transparent; border: 0; cursor: pointer\">\n<span style=\"display: flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 13px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\nComment\n<\/span>\n<\/button>\n<button type=\"button\" @click=\"s.toggle\" :aria-expanded=\"s.formOpen\" style=\"min-height: 44px; padding: 0 2px; background: transparent; border: 0; cursor: pointer\">\n<span style=\"display: flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 13px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px\">\n<svg aria-hidden=\"true\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\" /><\/svg>\n{{s.toggleLabel}}\n<\/span>\n<\/button>\n<\/div>\n<\/div>\n\n<template v-if=\"s.formOpen\">\n<div @paste=\"onPaste\" style=\"display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #F8F0EA; border: 1px solid #ECE1D6; border-radius: 10px\">\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 8px\">\n<input id=\"lk-url\" type=\"text\" aria-label=\"Link naar de winkel\" placeholder=\"Plak de link\" :value=\"ld.url\" @input=\"onUrl\" @keydown=\"onLinkKey\" :autofocus=\"true\" style=\"flex: 2 1 220px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<input id=\"lk-comment\" type=\"text\" aria-label=\"Comment\" placeholder=\"Comment\" :value=\"ld.comment\" @input=\"onComment\" @keydown=\"onLinkKey\" style=\"flex: 2 1 180px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px\">\n<label class=\"pick\" style=\"position: relative; display: flex; align-items: center; gap: 6px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 14px; font-weight: 600; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\" /><circle cx=\"9\" cy=\"10\" r=\"1.6\" /><path d=\"M21 16l-5-5-8 9\" /><\/svg>\nFoto\n<input class=\"sr\" type=\"file\" accept=\"image/*\" @input=\"onFile\">\n<\/label>\n<template v-if=\"hasPreview\">\n<div style=\"display: flex; align-items: center; gap: 4px\">\n<img :src=\"preview\" alt=\"Gekozen foto\" style=\"width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #E3D6CA\">\n<button type=\"button\" @click=\"clearImg\" aria-label=\"Foto weghalen\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/div>\n<\/template>\n<button type=\"button\" @click=\"addLink\" :style=\"`min-height: 44px; padding: 0 18px; font-size: 15px; font-weight: 600; color: #FFFFFF; background: ${accent}; border: 0; border-radius: 8px; cursor: pointer`\">Opslaan<\/button>\n<button type=\"button\" @click=\"s.toggle\" aria-label=\"Link toevoegen sluiten\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/div>\n<template v-if=\"urlError\">\n<span style=\"font-size: 14px; color: #8C1D2B\">Dit lijkt geen geldige link.<\/span>\n<\/template>\n<span style=\"font-size: 13px; color: #6F5654\">Een foto kun je kiezen of plakken met Ctrl+V.<\/span>\n<\/div>\n<\/template>\n\n<template v-if=\"s.noLinks\">\n<p style=\"margin: 0; font-size: 15px; color: #6F5654\">Nog geen links of comments.<\/p>\n<\/template>\n\n<div style=\"display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 12px\">\n<template v-for=\"(l, __i6) in s.items\" :key=\"__i6\">\n<div :style=\"`display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding: ${l.wrapPad}; background: ${l.wrapBg}; border: ${l.wrapBorder}; border-radius: 10px`\">\n<template v-if=\"l.isLink\">\n\n<template v-if=\"l.hasImg\">\n<a :href=\"l.href\" target=\"_blank\" rel=\"noopener noreferrer\" :aria-label=\"l.photoAria\" style=\"display: block; aspect-ratio: 16 / 10; overflow: hidden; background: #EBD9D0; border-radius: 6px\">\n<img :src=\"l.img\" alt=\"\" @error=\"l.onImgError\" style=\"display: block; width: 100%; height: 100%; object-fit: cover\">\n<\/a>\n<div style=\"display: flex; align-items: center; justify-content: space-between; gap: 8px\">\n<span style=\"font-size: 12px; color: #6F5654\">{{l.photoLabel}}<\/span>\n<button type=\"button\" @click=\"l.clearPhoto\" style=\"min-height: 32px; padding: 0 4px; font-size: 12px; font-weight: 700; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Andere foto<\/button>\n<\/div>\n<\/template>\n<template v-if=\"l.noImg\">\n<div class=\"ph\" :id=\"`ph-${l.id}`\" tabindex=\"0\" role=\"group\" aria-label=\"Foto toevoegen: klik en plak een afbeelding met Ctrl+V\" @paste=\"l.onPhPaste\" style=\"display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 16 / 10; box-sizing: border-box; padding: 8px; text-align: center; font-size: 13px; color: #6F5654; background: #EBD9D0; border: 1px dashed #A38A83; border-radius: 6px\">\n<svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\" /><circle cx=\"9\" cy=\"10\" r=\"1.6\" /><path d=\"M21 16l-5-5-8 9\" /><\/svg>\n<span>Klik en plak een foto (Ctrl+V)<\/span>\n<label class=\"pick\" style=\"position: relative; display: flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 700; color: #3A2426; text-decoration: underline; cursor: pointer\">\nof kies een bestand\n<input class=\"sr\" type=\"file\" accept=\"image/*\" @input=\"l.onPhFile\">\n<\/label>\n<\/div>\n<\/template>\n\n<template v-if=\"l.hasOwn\">\n<div style=\"display: flex; flex-direction: column; gap: 4px\">\n<div style=\"aspect-ratio: 16 / 10; overflow: hidden; background: #EBD9D0; border-radius: 6px\">\n<img :src=\"l.own\" alt=\"Eigen foto\" style=\"display: block; width: 100%; height: 100%; object-fit: cover\">\n<\/div>\n<div style=\"display: flex; align-items: center; justify-content: space-between; gap: 8px\">\n<span style=\"font-size: 12px; color: #6F5654\">Eigen foto<\/span>\n<button type=\"button\" @click=\"l.clearOwn\" style=\"min-height: 32px; padding: 0 4px; font-size: 12px; font-weight: 700; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Weghalen<\/button>\n<\/div>\n<\/div>\n<\/template>\n\n<div style=\"display: flex; flex-direction: column; gap: 6px; padding: 0 4px\">\n<div style=\"display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 8px\">\n<span style=\"display: flex; align-items: center; gap: 2px; min-width: 0\">\n<button type=\"button\" role=\"switch\" :aria-checked=\"l.fav\" :aria-label=\"l.favAria\" @click=\"l.toggleFav\" style=\"flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-left: -10px; padding: 0; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" :fill=\"l.favFill\" :stroke=\"l.favStroke\" stroke-width=\"1.8\" stroke-linejoin=\"round\"><path d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z\" /><\/svg>\n<\/button>\n<span style=\"font-weight: 700; font-size: 16px\">{{l.title}}<\/span>\n<\/span>\n<span style=\"font-size: 12px; color: #6F5654\">{{l.host}}<\/span>\n<\/div>\n<div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px\">\n<template v-if=\"l.priceNotEditing\">\n<button type=\"button\" @click=\"l.startPrice\" aria-label=\"Prijs aanpassen\" style=\"min-height: 40px; padding: 0 2px; background: transparent; border: 0; cursor: pointer\">\n<span :style=\"`display: block; padding: 3px 10px; font-size: 14px; font-weight: 700; color: ${l.priceColor}; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px`\">{{l.priceText}}<\/span>\n<\/button>\n<template v-if=\"l.priceAutoHint\">\n<span style=\"font-size: 12px; color: #6F5654\">automatisch gelezen<\/span>\n<\/template>\n<\/template>\n<template v-if=\"l.priceEditing\">\n<input :id=\"`pr-${l.id}`\" type=\"text\" inputmode=\"decimal\" aria-label=\"Prijs in euro\" placeholder=\"Prijs, bijvoorbeeld 129\" :value=\"l.priceDraft\" @input=\"l.onPriceDraft\" @blur=\"l.savePrice\" @keydown=\"l.onPriceKey\" :style=\"`width: 150px; min-height: 40px; box-sizing: border-box; padding: 0 10px; font-size: 14px; color: #3A2426; background: #FBF7F2; border: 2px solid ${accent}; border-radius: 8px`\">\n<\/template>\n<template v-if=\"l.noOwn\">\n<label class=\"pick\" style=\"position: relative; display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 6px; font-size: 13px; font-weight: 700; color: #3A2426; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 8h3l2-3h6l2 3h3v11H4z\" /><circle cx=\"12\" cy=\"13\" r=\"3.5\" /><\/svg>\nEigen foto\n<input class=\"sr\" type=\"file\" accept=\"image/*\" aria-label=\"Eigen foto toevoegen\" @input=\"l.onOwnFile\">\n<\/label>\n<\/template>\n<\/div>\n<button type=\"button\" role=\"checkbox\" :aria-checked=\"l.seen\" @click=\"l.toggleSeen\" style=\"display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0; text-align: left; font-size: 14px; font-weight: 600; color: #3A2426; background: transparent; border: 0; cursor: pointer\">\n<span :style=\"`flex: none; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; box-sizing: border-box; color: #FFFFFF; background: ${l.seenBg}; border: 2px solid ${l.seenBd}; border-radius: 6px`\">\n<template v-if=\"l.seen\">\n<svg aria-hidden=\"true\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12l5 5 9-10\" /><\/svg>\n<\/template>\n<\/span>\nIn het echt gezien\n<\/button>\n<\/div>\n\n<\/template>\n\n<template v-if=\"l.editing\">\n<textarea :id=\"`nt-${l.id}`\" aria-label=\"Comment\" rows=\"3\" placeholder=\"Typ een comment\" :value=\"l.noteDraft\" @input=\"l.onNoteDraft\" @blur=\"l.saveNote\" @keydown=\"l.onNoteKey\" :style=\"`box-sizing: border-box; width: 100%; padding: 8px 10px; font-size: 14px; line-height: 1.4; color: #3A2426; background: #FBF7F2; border: 2px solid ${accent}; border-radius: 8px; resize: vertical`\"><\/textarea>\n<\/template>\n<template v-if=\"l.notEditing\">\n<div style=\"display: flex; align-items: flex-start; gap: 2px\">\n<button type=\"button\" @click=\"l.startNote\" aria-label=\"Comment bewerken\" :style=\"`flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 8px 10px; text-align: left; font-size: 14px; line-height: 1.4; color: ${l.noteColor}; background: #F3E1DA; border: 1px solid #E3C8BE; border-radius: 8px; cursor: text; white-space: pre-wrap; overflow-wrap: anywhere`\">{{l.noteText}}<\/button>\n<template v-if=\"l.isNote\">\n<button type=\"button\" @click=\"l.doDel\" aria-label=\"Verwijder comment\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 44px; color: #6F5654; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3\" /><\/svg>\n<\/button>\n<\/template>\n<\/div>\n<\/template>\n\n<template v-if=\"l.isLink\">\n<div style=\"display: flex; align-items: center; gap: 6px\">\n<template v-if=\"l.hasUrl\">\n<a class=\"btn\" :href=\"l.url\" target=\"_blank\" rel=\"noopener noreferrer\" :style=\"`flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 15px; font-weight: 600; text-decoration: none; background: ${accent}; border-radius: 8px`\">\nOpen winkel\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\" /><\/svg>\n<\/a>\n<\/template>\n<template v-if=\"l.noUrl\">\n<span style=\"flex: 1; font-size: 13px; color: #6F5654\">Nog geen link<\/span>\n<\/template>\n<template v-if=\"l.notConfirming\">\n<button type=\"button\" @click=\"l.openMenu\" aria-haspopup=\"menu\" :aria-label=\"`Meer opties voor link naar ${l.shop}`\" style=\"display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: #6F5654; background: transparent; border: 0; border-radius: 8px; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"5\" cy=\"12\" r=\"1.8\" /><circle cx=\"12\" cy=\"12\" r=\"1.8\" /><circle cx=\"19\" cy=\"12\" r=\"1.8\" /><\/svg>\n<\/button>\n<\/template>\n<template v-if=\"l.confirming\">\n<button type=\"button\" @click=\"l.doDel\" style=\"min-height: 44px; padding: 0 10px; font-size: 14px; font-weight: 600; color: #FFFFFF; background: #8C1D2B; border: 0; border-radius: 8px; cursor: pointer\">Verwijder<\/button>\n<button type=\"button\" @click=\"l.cancelDel\" aria-label=\"Annuleer verwijderen\" style=\"display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: #3A2426; background: transparent; border: 0; cursor: pointer\">\n<svg aria-hidden=\"true\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\" /><\/svg>\n<\/button>\n<\/template>\n<\/div>\n\n<template v-if=\"l.moveOpen\">\n<div style=\"display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #F8F0EA; border-radius: 8px\">\n<span style=\"font-size: 13px; font-weight: 700; color: #5C3B3C\">Verplaats naar<\/span>\n<template v-if=\"l.noMoveTargets\">\n<span style=\"font-size: 13px; color: #6F5654\">Maak eerst een meubel aan in de inventarislijst.<\/span>\n<\/template>\n<div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n<template v-for=\"(t, __i7) in l.moveTargets\" :key=\"__i7\">\n<button type=\"button\" @click=\"t.go\" style=\"min-height: 40px; padding: 0 12px; font-size: 13px; color: #3A2426; background: #FBF7F2; border: 1px solid #A98F88; border-radius: 999px; cursor: pointer\">{{t.label}}<\/button>\n<\/template>\n<button type=\"button\" @click=\"l.cancelMove\" style=\"min-height: 40px; padding: 0 8px; font-size: 13px; color: #3A2426; background: transparent; border: 0; text-decoration: underline; cursor: pointer\">Annuleer<\/button>\n<\/div>\n<\/div>\n<\/template>\n<\/template>\n\n<\/div>\n<\/template>\n<\/div>\n\n<p style=\"margin: 0; font-size: 13px; color: #6F5654\">Klik ergens in dit vlak en plak een link met Ctrl+V.<\/p>\n\n<\/div>\n<\/template>\n\n<\/div>\n<\/template>\n\n<\/div>\n<\/div>\n";
+
+  var pending = false;
+  var shared = null;
+  var comp = null;
+
+  class DCLogic {
+    constructor(props) { this.props = props || {}; this.state = {}; }
+    setState(patch) {
+      Object.assign(this.state, typeof patch === 'function' ? patch(this.state) : patch);
+      if (pending || !shared) return;
+      pending = true;
+      Promise.resolve().then(function () { pending = false; Object.assign(shared, comp.renderVals()); });
+    }
+  }
+
+
+const KEY = 'huislinks-v1';
+const BLANK_LD = { url: '', img: '', comment: '' };
+const STATUS = [
+  { key: 'overnemen', label: 'Overnemen', color: '#6B5350' },
+  { key: 'bezit', label: 'Al in bezit', color: '#5F6040' },
+  { key: 'kopen', label: 'Nog kopen', color: '#9A4440' },
+  { key: 'later', label: 'Komt later', color: '#6E4B5E' }
+];
+// Eigen status: status 'custom' met de tekst in statusText
+function statusOf(n) {
+  if (!n || !n.status) return null;
+  if (n.status === 'custom') return { key: 'custom', label: n.statusText || 'Eigen status', color: '#4B5A66' };
+  return STATUS.find((s) => s.key === n.status) || null;
+}
+// Pictogrammen voor de plattegrond, gekozen op een woord in de naam van het meubel (volgorde telt)
+const ICONS = [
+  { re: /bed|matras|boxspring/, d: 'M3 18V7M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3M7 11.5h.01' },
+  { re: /bank|sofa|hoekbank|loveseat/, d: 'M4 11V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3zM6 18v2M18 18v2' },
+  { re: /stoel|kruk|fauteuil|zitzak/, d: 'M8 3h8v9H8zM6 12h12v2H6zM8 14v7M16 14v7' },
+  { re: /tafel|bureau|werkblad/, d: 'M3 9h18M5 9v11M19 9v11M7 9v3M17 9v3' },
+  { re: /lamp|verlichting|spot/, d: 'M8 3h8l2 8H6zM12 11v9M8 20h8' },
+  { re: /plant|boom|bloem/, d: 'M12 21v-8M12 13c-4 0-6-2-6-6 4 0 6 2 6 6zM12 15c4 0 6-2 6-6-4 0-6 2-6 6zM8 21h8' },
+  { re: /\btv\b|televisie|beeldscherm|monitor/, d: 'M3 5h18v12H3zM8 21h8M12 17v4' },
+  { re: /koelkast|vriezer|fornuis|oven|vaatwasser|magnetron|wasmachine|droger|kookplaat|afzuig/, d: 'M6 3h12v18H6zM6 9h12M9 6h.01M9 14h6' },
+  { re: /kleed|tapijt|vloerkleed/, d: 'M3 7h18v10H3zM7 7v10M17 7v10' },
+  { re: /spiegel/, d: 'M12 3c3.3 0 6 3.6 6 8s-2.7 8-6 8-6-3.6-6-8 2.7-8 6-8zM12 19v2' },
+  { re: /kast|dressoir|commode|ladekast|rek|buffet|tv-meubel|meubel/, d: 'M5 3h14v18H5zM12 3v18M9 12h.01M15 12h.01' }
+];
+// Niveaus: room = kamer, item = deel, sub = meubel
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      data: { nodes: [], links: [] },
+      view: 'start',
+      prev: 'start',
+      addFor: null,
+      focusId: null,
+      editing: null,
+      editName: '',
+      noteEdit: null,
+      noteDraft: '',
+      moving: null,
+      movingLink: null,
+      capDraft: '',
+      capName: '',
+      capPhoto: '',
+      capErrorText: '',
+      capError: false,
+      capDone: false,
+      adding: null,
+      drafts: {},
+      roomDraft: '',
+      confirmDel: null,
+      confirmLink: null,
+      ld: BLANK_LD,
+      urlError: false,
+      persistOk: true
+    };
+  }
+
+  componentDidMount() {
+    let local = null;
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) local = JSON.parse(raw);
+    } catch (e) {}
+    const ok = (d) => d && Array.isArray(d.nodes) && Array.isArray(d.links);
+    if (ok(local)) this.setState({ data: local });
+    this._local = ok(local) ? local : null;
+    this.loadRemote(true);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (this._dirty) { clearTimeout(this._t); this.saveRemote(); } }
+      else this.loadRemote(false);
+    });
+  }
+
+  loadRemote(first) {
+    if (this._saving || this._dirty) return;
+    fetch('/api/data', { cache: 'no-store' })
+      .then((r) => { if (!r.ok) throw new Error('load'); return r.json(); })
+      .then((d) => {
+        if (this._saving || this._dirty) return;
+        const ok = d && Array.isArray(d.nodes) && Array.isArray(d.links);
+        if (ok && (d.nodes.length || d.links.length)) {
+          this.setState({ data: d, persistOk: true });
+          try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+        } else if (first && this._local && (this._local.nodes.length || this._local.links.length)) {
+          this.saveRemote();
+        } else {
+          this.setState({ persistOk: true });
+        }
+      })
+      .catch(() => this.setState({ persistOk: false }));
+  }
+
+  queueSave() {
+    this._dirty = true;
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.saveRemote(), 500);
+  }
+
+  saveRemote() {
+    this._dirty = false;
+    this._saving = true;
+    fetch('/api/data', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(this.state.data) })
+      .then((r) => { if (!r.ok) throw new Error('save'); this.setState({ persistOk: true }); })
+      .catch(() => {
+        this.setState({ persistOk: false });
+        this._dirty = true;
+        clearTimeout(this._t);
+        this._t = setTimeout(() => this.saveRemote(), 8000);
+      })
+      .then(() => { this._saving = false; });
+  }
+
+  commit(data, extra) {
+    data = Object.assign({}, this.state.data, data);
+    this.setState(Object.assign({ data: data }, extra || {}));
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    this.queueSave();
+  }
+
+  uid() {
+    return Math.random().toString(36).slice(2, 9);
+  }
+
+  val(id, fallback) {
+    const el = document.getElementById(id);
+    return ((fallback || '') || (el ? el.value : '') || '').trim();
+  }
+
+  clearEl(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  }
+
+  focusEl(id) {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.focus();
+        if (el.select) el.select();
+      }
+    }, 60);
+  }
+
+  fixUrl(u) {
+    u = (u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    try {
+      const p = new URL(u);
+      if (!p.hostname || p.hostname.indexOf('.') === -1) return '';
+      return p.href;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  hostOf(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; }
+  }
+
+  shopOf(u) {
+    const parts = this.hostOf(u).split('.');
+    let name = parts[0];
+    if (parts.length >= 2) {
+      name = parts[parts.length - 2];
+      if (['co', 'com', 'org', 'net'].indexOf(name) !== -1 && parts.length >= 3) name = parts[parts.length - 3];
+    }
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  readImage(file, cb, maxSide) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = maxSide || 480;
+        const s = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s));
+        c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  capSaveNow() {
+    const raw = this.val('cap-in', this.state.capDraft);
+    const url = this.fixUrl(raw);
+    const name = this.val('cap-name', this.state.capName);
+    const photo = this.state.capPhoto || '';
+    if (raw && !url) { this.setState({ capError: true, capErrorText: 'Dit lijkt geen geldige link.', capDone: false }); return; }
+    if (!url && !name && !photo) { this.setState({ capError: true, capErrorText: 'Plak een link, of kies een foto of typ een naam.', capDone: false }); return; }
+    this.clearEl('cap-in');
+    this.clearEl('cap-name');
+    this.addLinkQuick('inbox', url, { capDraft: '', capName: '', capPhoto: '', capError: false, capDone: true }, { name: name, photo: photo });
+  }
+
+  moveLink(id, target) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === target && !n.status ? Object.assign({}, n, { status: 'kopen' }) : n)),
+      links: d.links.map((l) => (l.id === id ? Object.assign({}, l, { nodeId: target }) : l))
+    }, { movingLink: null });
+  }
+
+  moveNode(id, target) {
+    this.placeNode(id, target, {});
+  }
+
+  // Zet een meubel in een groep op een bepaalde plek. De volgorde in de lijst is de volgorde van de gegevens.
+  placeNode(id, parent, o) {
+    o = o || {};
+    const d = this.state.data;
+    const node = d.nodes.find((n) => n.id === id);
+    if (!node) return;
+    // nooit een onderdeel in zichzelf of in een eigen subonderdeel zetten
+    for (let p = parent, guard = 0; p && guard < 50; guard++) {
+      if (p === id) return;
+      const pn = d.nodes.find((n) => n.id === p);
+      p = pn ? pn.parent : null;
+    }
+    const rest = d.nodes.filter((n) => n.id !== id);
+    const moved = Object.assign({}, node, { parent: parent });
+    let idx = -1;
+    if (o.ref) {
+      const i = rest.findIndex((n) => n.id === o.ref);
+      if (i >= 0) idx = o.after ? i + 1 : i;
+    } else if (o.pos === 'start') {
+      idx = rest.findIndex((n) => n.parent === parent);
+    } else {
+      let last = -1;
+      rest.forEach((n, i) => { if (n.parent === parent) last = i; });
+      idx = last >= 0 ? last + 1 : -1;
+    }
+    if (idx < 0) rest.push(moved); else rest.splice(idx, 0, moved);
+    this.commit({ nodes: rest, links: d.links }, { moving: null });
+  }
+
+  renameNode(id) {
+    const el = document.getElementById('ed-' + id);
+    const name = (el ? el.value : (this.state.editName || '')).trim();
+    if (!name) return;
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { name: name }) : n)),
+      links: d.links
+    }, { editing: null });
+  }
+
+  // meubel in de inventarislijst slepen met het grijpertje: werkt met muis en vinger
+  rowDown(id, e) {
+    if (e.button !== undefined && e.button > 0) return;
+    if (e.preventDefault) e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let started = false;
+    let target = null;
+    let lastY = sy;
+    let timer = null;
+    const move = (ev) => {
+      if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      started = true;
+      lastY = ev.clientY;
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const hit = el && el.closest ? el.closest('[data-drop]') : null;
+      target = null;
+      const nodes = this.state.data.nodes;
+      const dragged = nodes.find((x) => x.id === id);
+      if (hit && dragged && dragged.kind === 'item') {
+        // een deel: alleen op een kamer of tussen andere delen
+        const rc = hit.getBoundingClientRect();
+        const dref = hit.getAttribute('data-dref') || '';
+        const pid = hit.getAttribute('data-drop');
+        const pn = nodes.find((x) => x.id === pid);
+        if (dref && dref !== id) {
+          const dn = nodes.find((x) => x.id === dref);
+          if (dn) target = { parent: dn.parent, ref: dref, pos: '', after: ev.clientY > rc.top + rc.height / 2 };
+        } else if (pn && pn.kind === 'room') {
+          target = { parent: pid, ref: '', pos: hit.getAttribute('data-pos') || '', after: false };
+        }
+      } else if (hit) {
+        const ref = hit.getAttribute('data-ref') || '';
+        if (ref !== id) {
+          const rc = hit.getBoundingClientRect();
+          target = { parent: hit.getAttribute('data-drop'), ref: ref, pos: hit.getAttribute('data-pos') || '', after: !!ref && ev.clientY > rc.top + rc.height / 2 };
+        }
+      }
+      this.setState({ drag: { id: id, x: ev.clientX, y: ev.clientY }, overId: target ? target.parent : null, overRef: target && target.ref ? target.ref : null, overAfter: !!(target && target.after), pop: null });
+      if (!timer) {
+        timer = setInterval(() => {
+          if (lastY < 70) window.scrollBy(0, -14);
+          else if (lastY > (window.innerHeight || 700) - 70) window.scrollBy(0, 14);
+        }, 16);
+      }
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (timer) clearInterval(timer);
+      this.setState({ drag: null, overId: null, overRef: null, overAfter: false });
+      if (started && target) this.placeNode(id, target.parent, { ref: target.ref, after: target.after, pos: target.pos });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }
+
+  // meubel op de plattegrond: slepen verplaatst, tikken opent een mini-menu
+  pinDown(id, e) {
+    const box = document.getElementById('plan-box');
+    if (!box) return;
+    if (e.preventDefault) e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let moved = false;
+    let outside = false;
+    const move = (ev) => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      moved = true;
+      const r = box.getBoundingClientRect();
+      outside = ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom;
+      const x = Math.max(0, Math.min(100, ((ev.clientX - r.left) / r.width) * 100));
+      const y = Math.max(0, Math.min(100, ((ev.clientY - r.top) / r.height) * 100));
+      const d = this.state.data;
+      this.setState({ dragOutId: outside ? id : null, data: Object.assign({}, d, { nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { pos: { x: x, y: y } }) : n)) }) });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (moved && outside) { this.setState({ dragOutId: null }); this.setPos(id, null); }
+      else if (moved) this.commit(this.state.data);
+      else this.openLinks(id);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  }
+
+  openLinks(id) {
+    this.setState({ pop: null, view: 'buy', prev: 'plan', focusId: id, adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false });
+  }
+
+  setPos(id, pos) {
+    const d = this.state.data;
+    this.commit({ nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { pos: pos }) : n)) });
+  }
+
+  openPop(kind, id, e) {
+    const el = e && (e.currentTarget || (e.target && e.target.closest && e.target.closest('button')));
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : { top: 80, bottom: 120, right: 300 };
+    const count = kind === 'status' ? 6 : (kind === 'meubel' ? 4 : (kind === 'link' ? 3 : 2));
+    const h = count * 40 + 10 + (kind === 'pin' ? 30 : 0) + (kind === 'status' ? 6 : 0);
+    const w = window.innerWidth || 400;
+    const vh = window.innerHeight || 700;
+    const left = Math.max(8, Math.min(r.right - 164, w - 172));
+    const top = r.bottom + 4 + h > vh ? Math.max(8, r.top - h - 4) : r.bottom + 4;
+    const node = this.state.data.nodes.find((x) => x.id === id);
+    this.setState({ pop: { kind: kind, id: id, top: top, left: left }, popDraft: node && node.status === 'custom' ? (node.statusText || '') : '' });
+  }
+
+  setStatus(id, status, text) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { status: status, statusText: status === 'custom' ? text : null }) : n)),
+      links: d.links
+    });
+  }
+
+  toggleNodeFav(id) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes.map((n) => (n.id === id ? Object.assign({}, n, { fav: !n.fav }) : n)),
+      links: d.links
+    });
+  }
+
+  addRoomNow() {
+    const name = this.val('room-in', this.state.roomDraft);
+    if (!name) return;
+    this.clearEl('room-in');
+    const id = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes.concat([{ id: id, kind: 'room', parent: null, name: name }]),
+      links: this.state.data.links
+    }, { roomDraft: '', adding: null });
+    this.focusEl('in-' + id);
+  }
+
+  addLinkNow() {
+    const ld = this.state.ld;
+    const nodeId = this.state.addFor;
+    if (!nodeId) return;
+    const url = this.fixUrl(this.val('lk-url', ld.url));
+    if (!url) { this.setState({ urlError: true }); return; }
+    const comment = this.val('lk-comment', ld.comment);
+    ['lk-url', 'lk-comment'].forEach((id) => this.clearEl(id));
+    const newId = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([{
+        id: newId, nodeId: nodeId, url: url,
+        shop: this.shopOf(url), img: ld.img || this.shotUrl(url), shot: !ld.img, comment: comment, t: Date.now()
+      }])
+    }, { ld: BLANK_LD, urlError: false });
+    this.fetchPrice(newId, url, false);
+  }
+
+  // Prijs automatisch ophalen via de website zelf (/api/price). Lukt dat niet, dan blijft het veld leeg om zelf in te vullen.
+  fetchPrice(id, url, manual) {
+    this.setState({ priceBusy: id, priceMiss: null });
+    const done = (found) => this.setState({ priceBusy: null, priceMiss: manual && !found ? id : null });
+    fetch('/api/price?url=' + encodeURIComponent(url))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const l = this.state.data.links.find((x) => x.id === id);
+        if (j && j.price && l && (manual || !l.price)) {
+          this.updateLink(id, { price: j.price, priceAuto: true });
+          done(true);
+        } else {
+          done(false);
+        }
+      })
+      .catch(() => done(false));
+  }
+
+  shotUrl(url) {
+    return 'https://s0.wp.com/mshots/v1/' + encodeURIComponent(url) + '?w=640&h=400';
+  }
+
+  // opts.name = naam of model, opts.photo = eigen foto (bijvoorbeeld in de winkel gemaakt). Zonder link is de foto de hoofdfoto.
+  addLinkQuick(nodeId, url, extra, opts) {
+    opts = opts || {};
+    const id = this.uid();
+    const rec = { id: id, nodeId: nodeId, url: url || '', name: opts.name || '', comment: '', t: Date.now() };
+    if (url) {
+      rec.shop = this.shopOf(url);
+      rec.img = this.shotUrl(url);
+      rec.shot = true;
+      if (opts.photo) rec.own = opts.photo;
+    } else {
+      rec.shop = '';
+      rec.img = opts.photo || '';
+      rec.shot = false;
+    }
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([rec])
+    }, extra);
+    if (!rec.img) this.focusEl('ph-' + id);
+    if (url) this.fetchPrice(id, url, false);
+  }
+
+  addNote(nodeId) {
+    const id = this.uid();
+    this.commit({
+      nodes: this.state.data.nodes,
+      links: this.state.data.links.concat([{ id: id, nodeId: nodeId, url: '', note: true, shop: '', img: '', comment: '', t: Date.now() }])
+    }, { noteEdit: id, noteDraft: '' });
+    this.focusEl('nt-' + id);
+  }
+
+  startNote(id) {
+    const l = this.state.data.links.find((x) => x.id === id);
+    this.setState({ noteEdit: id, noteDraft: l ? (l.comment || '') : '' });
+    this.focusEl('nt-' + id);
+  }
+
+  saveNote(id) {
+    if (this.state.noteEdit !== id) return;
+    const el = document.getElementById('nt-' + id);
+    const text = (el ? el.value : (this.state.noteDraft || '')).trim();
+    const d = this.state.data;
+    const l = d.links.find((x) => x.id === id);
+    if (!l) { this.setState({ noteEdit: null }); return; }
+    if (l.note && !text) {
+      this.commit({ nodes: d.nodes, links: d.links.filter((x) => x.id !== id) }, { noteEdit: null });
+    } else {
+      this.commit({ nodes: d.nodes, links: d.links.map((x) => (x.id === id ? Object.assign({}, x, { comment: text }) : x)) }, { noteEdit: null });
+    }
+  }
+
+  cancelNote(id) {
+    const d = this.state.data;
+    const l = d.links.find((x) => x.id === id);
+    if (l && l.note && !l.comment) this.commit({ nodes: d.nodes, links: d.links.filter((x) => x.id !== id) }, { noteEdit: null });
+    else this.setState({ noteEdit: null });
+  }
+
+  removeNode(id) {
+    const nodes = this.state.data.nodes;
+    const gone = {};
+    gone[id] = true;
+    let grew = true;
+    while (grew) {
+      grew = false;
+      nodes.forEach((n) => {
+        if (n.parent && gone[n.parent] && !gone[n.id]) { gone[n.id] = true; grew = true; }
+      });
+    }
+    this.commit({
+      nodes: nodes.filter((n) => !gone[n.id]),
+      links: this.state.data.links.filter((l) => !gone[l.nodeId])
+    }, { confirmDel: null, adding: null, addFor: gone[this.state.addFor] ? null : this.state.addFor });
+  }
+
+  // kind 'item' = een deel binnen een kamer; anders een meubel (direct in een kamer of in een deel)
+  addChild(parentId, wanted) {
+    const key = wanted === 'item' ? 'd-' + parentId : parentId;
+    const inputId = 'in-' + key;
+    const name = this.val(inputId, this.state.drafts[key]);
+    if (!name) return;
+    const d = this.state.data;
+    const parent = parentId === 'overig' ? { kind: 'item' } : d.nodes.find((n) => n.id === parentId);
+    if (!parent) return;
+    this.clearEl(inputId);
+    const kind = wanted === 'item' ? 'item' : 'sub';
+    const id = this.uid();
+    const drafts = Object.assign({}, this.state.drafts);
+    drafts[key] = '';
+    this.commit({
+      nodes: d.nodes.concat([{ id: id, kind: kind, parent: parentId, name: name }]),
+      links: d.links
+    }, kind === 'item' ? { drafts: drafts, adding: null } : { drafts: drafts });
+    // nieuw deel: meteen klaar om het eerste meubel te typen; nieuw meubel: invoerveld blijft actief
+    this.focusEl(kind === 'item' ? 'in-' + id : inputId);
+  }
+
+  savePrice(id) {
+    if (this.state.priceEdit !== id) return;
+    const el = document.getElementById('pr-' + id);
+    const text = (el ? el.value : (this.state.priceDraft || '')).trim().replace(/^€\s*/, '');
+    this.updateLink(id, { price: text, priceAuto: false });
+    this.setState({ priceEdit: null });
+  }
+
+  updateLink(id, patch) {
+    const d = this.state.data;
+    this.commit({
+      nodes: d.nodes,
+      links: d.links.map((l) => (l.id === id ? Object.assign({}, l, patch) : l))
+    });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const d = st.data;
+    const nodes = d.nodes;
+    const links = d.links;
+    const accent = this.props.accent ?? '#7E4045';
+
+    const base = { isKamer: false, isDeel: false, isMeubel: false, isEdit: false, isMove: false, isMenu: false, isOverigHead: false, isForm: false, isQuick: false };
+
+    const delVals = (n) => ({
+      name: n.name,
+      confirming: st.confirmDel === n.id,
+      notConfirming: st.confirmDel !== n.id,
+      askDel: () => this.setState({ confirmDel: n.id }),
+      cancelDel: () => this.setState({ confirmDel: null }),
+      doDel: () => this.removeNode(n.id)
+    });
+
+    // Plekken waar een meubel op neergezet kan worden (kamer, deel of een meubel in dat deel)
+    // pos 'start' = bovenaan in die groep (kop van kamer of deel), 'end' = onderaan (invoerregel), ref = ervoor of erna bij dit meubel
+    const dropVals = (target, pos, ref) => {
+      const tint = st.overId === target && !st.overRef;
+      const line = ref && st.overRef === ref ? (st.overAfter ? 'inset 0 -3px 0 #7E4045' : 'inset 0 3px 0 #7E4045') : 'none';
+      return {
+        dropId: target,
+        dropPos: pos || '',
+        dropRef: ref || '',
+        lineShadow: line,
+        dropBg: !ref && tint ? '#F3E1DA' : 'transparent',
+        kamerBg: tint ? '#E3C8BE' : '#EBD7CF'
+      };
+    };
+
+    const inputVals = (parent, kind) => {
+      const key = kind === 'item' ? 'd-' + parent.id : parent.id;
+      return {
+        pid: key,
+        parentName: parent.name,
+        draft: st.drafts[key] || '',
+        onDraft: (e) => {
+          const next = Object.assign({}, this.state.drafts);
+          next[key] = e.target.value;
+          this.setState({ drafts: next });
+        },
+        submit: () => this.addChild(parent.id, kind),
+        onKey: (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); this.addChild(parent.id, kind); }
+          else if (e.key === 'Escape') { this.setState({ subAdd: null }); }
+        }
+      };
+    };
+
+    const rows = [];
+    const buyList = [];
+    const allList = [];
+    const targets = [];
+    nodes.filter((n) => n.kind === 'room').forEach((k) => {
+      targets.push({ id: k.id, label: k.name });
+      nodes.filter((n) => n.parent === k.id && n.kind === 'item').forEach((dl) => targets.push({ id: dl.id, label: k.name + '  ›  ' + dl.name }));
+    });
+
+    const pushMeubel = (meubel, crumb, pad, depth) => {
+      depth = depth || 0;
+      allList.push({ node: meubel, crumb: crumb });
+      if (st.editing === meubel.id) {
+        rows.push(Object.assign({}, base, {
+          isEdit: true, pad: pad, eid: meubel.id, draft: st.editName,
+          onDraft: (e) => this.setState({ editName: e.target.value }),
+          save: () => this.renameNode(meubel.id),
+          onKey: (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.renameNode(meubel.id); }
+            else if (e.key === 'Escape') { this.setState({ editing: null }); }
+          },
+          cancel: () => this.setState({ editing: null })
+        }));
+      } else {
+        const stCur = statusOf(meubel);
+        rows.push(Object.assign({}, base, delVals(meubel), {
+          isMeubel: true, pad: pad, nameSize: depth > 0 ? '16px' : '18px',
+          open: () => this.setState({ view: 'buy', prev: 'home', focusId: meubel.id, adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+          statusLabel: stCur ? stCur.label : 'Status kiezen',
+          stBg: stCur ? stCur.color : '#FBF7F2',
+          stFg: stCur ? '#FFFFFF' : '#3A2426',
+          stBd: stCur ? stCur.color : '#A98F88',
+          openStatus: (e) => this.openPop('status', meubel.id, e),
+          nodeFavAria: meubel.fav ? 'Favoriet: ' + meubel.name + '. Tik om te verwijderen' : 'Maak ' + meubel.name + ' favoriet',
+          nodeFavFill: meubel.fav ? '#C9893A' : 'none',
+          nodeFavStroke: meubel.fav ? '#C9893A' : '#A98F88',
+          nodeFav: !!meubel.fav,
+          toggleNodeFav: () => this.toggleNodeFav(meubel.id),
+          openMenu: (e) => this.openPop('meubel', meubel.id, e),
+          gripDown: (e) => this.rowDown(meubel.id, e),
+          rowOpacity: st.drag && st.drag.id === meubel.id ? '0.4' : '1'
+        }, dropVals(meubel.parent, '', meubel.id)));
+        if (st.moving === meubel.id) {
+          const opts = targets.filter((t) => t.id !== meubel.parent).map((t) => ({ label: t.label, go: () => this.moveNode(meubel.id, t.id) }));
+          rows.push(Object.assign({}, base, {
+            isMove: true, pad: pad, targets: opts, noTargets: opts.length === 0,
+            cancel: () => this.setState({ moving: null })
+          }));
+        }
+      }
+      if (meubel.status === 'kopen') buyList.push({ node: meubel, crumb: crumb });
+      // subonderdelen van dit meubel, iets ingesprongen
+      const childPad = (parseInt(pad, 10) + 20) + 'px';
+      nodes.filter((n) => n.parent === meubel.id && n.kind === 'sub').forEach((k) => pushMeubel(k, crumb + '  ›  ' + meubel.name, childPad, depth + 1));
+      if (st.subAdd === meubel.id) {
+        rows.push(Object.assign({}, base, inputVals(meubel), dropVals(meubel.id, 'end'), { isQuick: true, pad: childPad, qPlaceholder: 'Subonderdeel toevoegen, dan Enter' }));
+      }
+    };
+
+    nodes.filter((n) => n.kind === 'room').forEach((kamer) => {
+      rows.push(Object.assign({}, base, delVals(kamer), dropVals(kamer.id, 'start'), {
+        isKamer: true,
+        toggleAdd: () => {
+          const cur = this.state.adding;
+          const opening = !(cur && cur.parent === kamer.id);
+          this.setState({ adding: opening ? { parent: kamer.id } : null, confirmDel: null });
+          if (opening) this.focusEl('in-d-' + kamer.id);
+        }
+      }));
+      // meubels direct in de kamer (zonder deel)
+      nodes.filter((n) => n.parent === kamer.id && n.kind === 'sub').forEach((meubel) => pushMeubel(meubel, kamer.name, '28px'));
+      rows.push(Object.assign({}, base, inputVals(kamer), dropVals(kamer.id, 'end'), { isQuick: true, pad: '28px', qPlaceholder: 'Meubel toevoegen' }));
+      if (st.adding && st.adding.parent === kamer.id) {
+        rows.push(Object.assign({}, base, inputVals(kamer, 'item'), {
+          isForm: true, pad: '28px', placeholder: 'Naam van het deel, bijvoorbeeld keuken',
+          cancel: () => this.setState({ adding: null })
+        }));
+      }
+      nodes.filter((n) => n.parent === kamer.id && n.kind === 'item').forEach((deel) => {
+        rows.push(Object.assign({}, base, delVals(deel), dropVals(deel.id, 'start'), {
+          isDeel: true, pad: '28px',
+          deelRef: deel.id,
+          lineShadow: st.overRef === deel.id ? (st.overAfter ? 'inset 0 -3px 0 #7E4045' : 'inset 0 3px 0 #7E4045') : 'none',
+          rowOpacity: st.drag && st.drag.id === deel.id ? '0.4' : '1',
+          gripDown: (e) => this.rowDown(deel.id, e)
+        }));
+        nodes.filter((n) => n.parent === deel.id).forEach((meubel) => pushMeubel(meubel, kamer.name + '  ›  ' + deel.name, '44px'));
+        rows.push(Object.assign({}, base, inputVals(deel), dropVals(deel.id, 'end'), { isQuick: true, pad: '44px', qPlaceholder: 'Meubel toevoegen' }));
+      });
+    });
+
+    const overigEntry = { node: { id: 'overig', name: 'Overig' }, crumb: 'Losse leuke dingen, nog zonder meubel' };
+
+    const inboxEntry = { node: { id: 'inbox', name: 'Nog te sorteren' }, crumb: 'Net bewaard, nog te verdelen over een meubel of Overig' };
+
+    const focus = st.focusId === 'inbox' ? inboxEntry : (st.focusId === 'overig' ? overigEntry : (st.focusId ? allList.find((b) => b.node.id === st.focusId) : null));
+    const sections = (focus ? [focus] : buyList.concat([overigEntry])).map((b) => {
+      const n = b.node;
+      const mine = links.filter((l) => l.nodeId === n.id).sort((a, c) => ((c.fav ? 1 : 0) - (a.fav ? 1 : 0)) || (c.t - a.t));
+      const open = st.addFor === n.id;
+      return {
+        name: n.name,
+        crumb: b.crumb,
+        formOpen: open,
+        toggleLabel: open ? 'Sluiten' : 'Link toevoegen',
+        addNote: () => this.addNote(n.id),
+        onPasteArea: (e) => {
+          const t = e.target;
+          if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+          const text = (e.clipboardData && e.clipboardData.getData('text')) || '';
+          const url = this.fixUrl(text.trim().split(/\s+/)[0]);
+          if (!url) return;
+          e.preventDefault();
+          this.addLinkQuick(n.id, url);
+        },
+        toggle: () => this.setState({ addFor: this.state.addFor === n.id ? null : n.id, ld: BLANK_LD, urlError: false }),
+        noLinks: mine.length === 0,
+        items: mine.map((l) => ({
+          id: l.id,
+          isLink: !l.note,
+          isNote: !!l.note,
+          url: l.url,
+          moveOpen: st.movingLink === l.id,
+          openMenu: (e) => this.openPop('link', l.id, e),
+          cancelMove: () => this.setState({ movingLink: null }),
+          moveTargets: allList
+            .filter((x) => x.node.id !== n.id)
+            .map((x) => ({ label: x.crumb + '  ›  ' + x.node.name, go: () => this.moveLink(l.id, x.node.id) }))
+            .concat(n.id !== 'overig' ? [{ label: 'Overig', go: () => this.moveLink(l.id, 'overig') }] : []),
+          noMoveTargets: n.id === 'overig' && allList.length === 0,
+          wrapPad: l.note ? '0' : '8px',
+          wrapBg: l.note ? 'transparent' : '#FBF7F2',
+          wrapBorder: l.note ? '0' : '1px solid #E3D6CA',
+          own: l.own || '',
+          hasOwn: !!l.own,
+          noOwn: !l.own,
+          onOwnFile: (e) => {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            this.readImage(f, (u) => this.updateLink(l.id, { own: u }), 900);
+          },
+          clearOwn: () => this.updateLink(l.id, { own: '' }),
+          fav: !!l.fav,
+          favAria: l.fav ? 'Favoriet, tik om te verwijderen' : 'Maak favoriet',
+          favFill: l.fav ? '#C9893A' : 'none',
+          favStroke: l.fav ? '#C9893A' : '#6F5654',
+          toggleFav: () => this.updateLink(l.id, { fav: !l.fav }),
+          seen: !!l.seen,
+          seenBg: l.seen ? '#5F6040' : '#FBF7F2',
+          seenBd: l.seen ? '#5F6040' : '#A98F88',
+          toggleSeen: () => this.updateLink(l.id, { seen: !l.seen }),
+          priceEditing: st.priceEdit === l.id,
+          priceNotEditing: st.priceEdit !== l.id,
+          priceDraft: st.priceDraft,
+          priceText: st.priceBusy === l.id ? 'Prijs zoeken…' : (l.price ? (/^[\d.,\s]+$/.test(l.price) ? '€ ' + l.price.trim() : l.price) : (st.priceMiss === l.id ? '+ Prijs (niet gevonden)' : '+ Prijs')),
+          priceColor: l.price ? '#3A2426' : '#6F5654',
+          priceAutoHint: !!l.price && !!l.priceAuto && st.priceBusy !== l.id,
+          startPrice: () => {
+            this.setState({ priceEdit: l.id, priceDraft: l.price || '' });
+            this.focusEl('pr-' + l.id);
+          },
+          onPriceDraft: (e) => this.setState({ priceDraft: e.target.value }),
+          savePrice: () => this.savePrice(l.id),
+          onPriceKey: (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.savePrice(l.id); }
+            else if (e.key === 'Escape') { this.setState({ priceEdit: null }); }
+          },
+          photoLabel: l.shot ? 'Screenshot van de pagina' : 'Eigen foto',
+          clearPhoto: () => this.updateLink(l.id, { img: '', shot: false }),
+          onImgError: () => this.updateLink(l.id, { img: '', shot: false }),
+          editing: st.noteEdit === l.id,
+          notEditing: st.noteEdit !== l.id,
+          noteDraft: st.noteDraft,
+          noteText: l.comment || (l.note ? 'Typ een comment' : 'Comment toevoegen'),
+          noteColor: l.comment ? '#3A2426' : '#6F5654',
+          startNote: () => this.startNote(l.id),
+          onNoteDraft: (e) => this.setState({ noteDraft: e.target.value }),
+          saveNote: () => this.saveNote(l.id),
+          onNoteKey: (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.saveNote(l.id); }
+            else if (e.key === 'Escape') { this.cancelNote(l.id); }
+          },
+          onPhPaste: (e) => {
+            const its = (e.clipboardData && e.clipboardData.items) || [];
+            for (let i = 0; i < its.length; i++) {
+              if (its[i].kind === 'file' && its[i].type.indexOf('image/') === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.readImage(its[i].getAsFile(), (u) => this.updateLink(l.id, { img: u, shot: false }));
+                return;
+              }
+            }
+          },
+          onPhFile: (e) => {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            this.readImage(f, (u) => this.updateLink(l.id, { img: u, shot: false }));
+          },
+          shop: l.shop || this.shopOf(l.url),
+          title: l.name || l.shop || (l.url ? this.shopOf(l.url) : 'Zonder naam'),
+          hasUrl: !!l.url,
+          noUrl: !l.url,
+          href: l.url || undefined,
+          photoAria: l.url ? 'Open ' + (l.name || l.shop) + ' in een nieuw tabblad' : 'Foto van ' + (l.name || 'dit item'),
+          host: l.url ? this.hostOf(l.url) : '',
+          img: l.img,
+          hasImg: !!l.img,
+          noImg: !l.img,
+          comment: l.comment || '',
+          onComment: (e) => this.updateLink(l.id, { comment: e.target.value }),
+          confirming: st.confirmLink === l.id,
+          notConfirming: st.confirmLink !== l.id,
+          askDel: () => this.setState({ confirmLink: l.id }),
+          cancelDel: () => this.setState({ confirmLink: null }),
+          doDel: () => this.commit({ nodes: this.state.data.nodes, links: this.state.data.links.filter((x) => x.id !== l.id) }, { confirmLink: null })
+        }))
+      };
+    });
+
+    const preview = st.ld.img || '';
+
+    // Huis indeling: meubels als verplaatsbare labels op de plattegrond
+    const planImg = (this.state.data.plan && this.state.data.plan.img) || '';
+    const iconFor = (name) => {
+      const t = (name || '').toLowerCase();
+      for (let i = 0; i < ICONS.length; i++) {
+        if (ICONS[i].re.test(t)) return ICONS[i].d;
+      }
+      return '';
+    };
+    const pins = allList.filter((b) => b.node.pos).map((b) => {
+      const s = statusOf(b.node);
+      const icon = iconFor(b.node.name);
+      return {
+        icon: icon,
+        hasIcon: !!icon,
+        noIcon: !icon,
+        name: b.node.name,
+        left: b.node.pos.x + '%',
+        top: b.node.pos.y + '%',
+        dot: s ? s.color : '#A98F88',
+        down: (e) => this.pinDown(b.node.id, e),
+        ghost: st.dragOutId === b.node.id ? '0.4' : '1',
+        key: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.openLinks(b.node.id); }
+          else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.setPos(b.node.id, null); }
+        }
+      };
+    });
+    const chips = allList.filter((b) => !b.node.pos).map((b) => ({
+      name: b.node.name,
+      crumb: b.crumb,
+      place: () => this.setPos(b.node.id, { x: 50, y: 50 })
+    }));
+    const planPaste = (e) => {
+      const its = (e.clipboardData && e.clipboardData.items) || [];
+      for (let i = 0; i < its.length; i++) {
+        if (its[i].kind === 'file' && its[i].type.indexOf('image/') === 0) {
+          e.preventDefault();
+          this.readImage(its[i].getAsFile(), (u) => this.commit({ plan: { img: u } }), 1100);
+          return;
+        }
+      }
+    };
+
+    // Mini-menu: status van een meubel, acties voor een meubel of acties voor een link
+    let popItems = [];
+    const pop = st.pop;
+    const closeP = () => this.setState({ pop: null });
+    const item = (label, go, o) => Object.assign({ label: label, go: go, fg: '#3A2426', bg: 'transparent', dot: 'transparent', dotDisplay: 'none' }, o || {});
+    if (pop && pop.kind === 'status') {
+      const m = allList.find((b) => b.node.id === pop.id);
+      if (m) {
+        popItems = STATUS.map((s) => item(s.label, () => { this.setStatus(pop.id, s.key); closeP(); }, {
+          dot: s.color, dotDisplay: 'block', bg: m.node.status === s.key ? '#EBD7CF' : 'transparent'
+        })).concat([item('Geen status', () => { this.setStatus(pop.id, null); closeP(); }, {
+          dot: '#FBF7F2', dotDisplay: 'block', bg: !m.node.status ? '#EBD7CF' : 'transparent'
+        })]);
+      }
+    } else if (pop && pop.kind === 'meubel') {
+      const m = allList.find((b) => b.node.id === pop.id);
+      if (m) {
+        popItems = [
+          item('Subonderdeel', () => { this.setState({ pop: null, subAdd: m.node.id, editing: null, moving: null, confirmDel: null }); this.focusEl('in-' + m.node.id); }),
+          item('Verplaats', () => this.setState({ pop: null, moving: m.node.id, editing: null, confirmDel: null })),
+          item('Pas aan', () => {
+            this.setState({ pop: null, editing: m.node.id, editName: m.node.name, confirmDel: null, moving: null });
+            this.focusEl('ed-' + m.node.id);
+          }),
+          item('Verwijder', () => this.setState({ pop: null, confirmDel: m.node.id, editing: null, moving: null }), { fg: '#8C1D2B' })
+        ];
+      }
+    } else if (pop && pop.kind === 'pin') {
+      const m = allList.find((b) => b.node.id === pop.id);
+      if (m) {
+        popItems = [
+          item('Open links', () => this.setState({ pop: null, view: 'buy', prev: 'plan', focusId: m.node.id, adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false })),
+          item('Van plattegrond halen', () => { this.setPos(m.node.id, null); closeP(); })
+        ];
+      }
+    } else if (pop && pop.kind === 'link' && links.some((x) => x.id === pop.id)) {
+      const pl = links.find((x) => x.id === pop.id);
+      popItems = [
+        item('Verplaats', () => this.setState({ pop: null, movingLink: pop.id })),
+        item('Prijs opnieuw lezen', () => { closeP(); this.fetchPrice(pop.id, pl.url, true); }),
+        item('Verwijder', () => this.setState({ pop: null, confirmLink: pop.id }), { fg: '#8C1D2B' })
+      ];
+      if (!pl.url) popItems = popItems.filter((x) => x.label !== 'Prijs opnieuw lezen');
+    }
+
+    return {
+      accent: accent,
+      warnStorage: !st.persistOk,
+
+      hasPopInput: popItems.length > 0 && !!pop && pop.kind === 'status',
+      popInputValue: st.popDraft || '',
+      onPopInput: (e) => this.setState({ popDraft: e.target.value }),
+      onPopInputKey: (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const el = document.getElementById('pop-in');
+          const text = ((el ? el.value : this.state.popDraft) || '').trim();
+          if (text && pop) { this.setStatus(pop.id, 'custom', text); closeP(); }
+        } else if (e.key === 'Escape') {
+          closeP();
+        }
+      },
+      dragOn: !!st.drag,
+      dragName: st.drag ? ((allList.find((b) => b.node.id === st.drag.id) || { node: { name: '' } }).node.name) : '',
+      dragLeft: st.drag ? st.drag.x + 'px' : '0px',
+      dragTop: st.drag ? st.drag.y + 'px' : '0px',
+      hasPopTitle: popItems.length > 0 && !!pop && pop.kind === 'pin',
+      popTitle: (pop && pop.kind === 'pin' && (allList.find((b) => b.node.id === pop.id) || { node: { name: '' } }).node.name) || '',
+      popOpen: popItems.length > 0,
+      popItems: popItems,
+      popTop: pop ? pop.top + 'px' : '0px',
+      popLeft: pop ? pop.left + 'px' : '0px',
+      closePop: closeP,
+
+      showPlan: st.view === 'plan',
+      goPlan: () => this.setState({ view: 'plan', prev: 'start', focusId: null, pop: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+      planImg: planImg,
+      hasPlanImg: !!planImg,
+      noPlanImg: !planImg,
+      pins: pins,
+      chips: chips,
+      hasChips: chips.length > 0,
+      trayHint: allList.length === 0 ? 'Voeg eerst meubels toe in de inventarislijst.' : (chips.length === 0 ? 'Alle meubels staan op de plattegrond.' : ''),
+      placedCount: pins.length,
+      onPlanFile: (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        this.readImage(f, (u) => this.commit({ plan: { img: u } }), 1100);
+      },
+      onPlanPaste: planPaste,
+      clearPlan: () => this.commit({ plan: null }),
+
+      showStart: st.view === 'start',
+      showHome: st.view === 'home',
+      showBuy: st.view === 'buy',
+      goBuy: () => this.setState({ view: 'buy', prev: this.state.view === 'buy' ? this.state.prev : this.state.view, focusId: null, adding: null, confirmDel: null, editing: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+      goHome: () => this.setState({ view: 'home', focusId: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+      goStart: () => this.setState({ view: 'start', focusId: null, addFor: null, confirmLink: null, adding: null, ld: BLANK_LD, urlError: false }),
+      goBack: () => this.setState({ view: this.state.prev || 'start', focusId: null, addFor: null, confirmLink: null, moving: null, movingLink: null, ld: BLANK_LD, urlError: false }),
+      backLabel: st.prev === 'home' ? 'Inventarislijst' : (st.prev === 'plan' ? 'Huis indeling' : 'Start'),
+      meubelCount: allList.length,
+      buyCount: buyList.length,
+
+      hasRooms: rows.length > 0,
+      noRooms: rows.length === 0,
+      rows: rows,
+      roomDraft: st.roomDraft,
+      onRoomDraft: (e) => this.setState({ roomDraft: e.target.value }),
+      addRoom: () => this.addRoomNow(),
+      onRoomKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addRoomNow(); } },
+
+      sections: sections,
+      noBuy: !focus && buyList.length === 0,
+      focusMode: !!focus,
+      pageTitle: st.focusId === 'inbox' ? 'Nog te sorteren' : (st.focusId === 'overig' ? 'Overig' : (focus ? 'Links' : 'Nog kopen')),
+      capDraft: st.capDraft,
+      capError: st.capError,
+      capDone: st.capDone,
+      onCapDraft: (e) => this.setState({ capDraft: e.target.value, capError: false, capDone: false }),
+      capName: st.capName,
+      capPhoto: st.capPhoto,
+      hasCapPhoto: !!st.capPhoto,
+      capErrorText: st.capErrorText,
+      onCapName: (e) => this.setState({ capName: e.target.value, capError: false, capDone: false }),
+      onCapPhoto: (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        this.readImage(f, (u) => this.setState({ capPhoto: u, capError: false, capDone: false }), 900);
+      },
+      clearCapPhoto: () => this.setState({ capPhoto: '' }),
+      onCapKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.capSaveNow(); } },
+      capSave: () => this.capSaveNow(),
+      inboxCount: links.filter((l) => l.nodeId === 'inbox').length,
+      goInbox: () => this.setState({ view: 'buy', prev: this.state.view === 'buy' ? this.state.prev : this.state.view, focusId: 'inbox', adding: null, confirmDel: null, editing: null, moving: null, addFor: null, confirmLink: null, ld: BLANK_LD, urlError: false }),
+
+      ld: st.ld,
+      urlError: st.urlError,
+      preview: preview,
+      hasPreview: !!preview,
+      onUrl: (e) => this.setState({ ld: Object.assign({}, this.state.ld, { url: e.target.value }), urlError: false }),
+      onComment: (e) => this.setState({ ld: Object.assign({}, this.state.ld, { comment: e.target.value }) }),
+      onLinkKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addLinkNow(); } },
+      onFile: (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        this.readImage(f, (u) => this.setState({ ld: Object.assign({}, this.state.ld, { img: u }) }));
+      },
+      onPaste: (e) => {
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file' && items[i].type.indexOf('image/') === 0) {
+            e.preventDefault();
+            this.readImage(items[i].getAsFile(), (u) => this.setState({ ld: Object.assign({}, this.state.ld, { img: u }) }));
+            return;
+          }
+        }
+      },
+      clearImg: () => this.setState({ ld: Object.assign({}, this.state.ld, { img: '' }) }),
+      addLink: () => this.addLinkNow()
+    };
+  }
+}
+
+
+  comp = new Component({});
+  var app = Vue.createApp({
+    template: TEMPLATE,
+    setup: function () { shared = Vue.shallowReactive(comp.renderVals()); return shared; }
+  });
+  app.mount('#app');
+  if (comp.componentDidMount) comp.componentDidMount();
+})();
+</script>
+</body>
+</html>
